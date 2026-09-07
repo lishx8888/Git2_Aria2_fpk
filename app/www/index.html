@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aria2 下载中心</title>
+<link rel="icon" href="favicon.png">
+<style>
+:root{
+  --bg:#f4f6fb;
+  --card:#ffffff;
+  --line:#e5e9f2;
+  --text:#1f2937;
+  --muted:#6b7280;
+  --accent:#4f6ef7;
+  --accent2:#7c5cf0;
+  --ok:#10b981;
+  --warn:#f59e0b;
+  --err:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+.topbar{
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#4f6ef7,#7c5cf0);
+  color:#fff;padding:14px 20px;flex-wrap:wrap;
+}
+.brand{font-size:18px;font-weight:700;margin-right:auto}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
+  padding:6px 12px;border-radius:999px;font-size:13px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:none}
+.dot.on{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.35)}
+.dot.off{background:#f87171}
+.tabs{
+  display:flex;gap:6px;padding:14px 20px 0;max-width:1180px;margin:0 auto;width:100%;
+}
+.tabs button{
+  background:#e9edf7;border:none;padding:10px 18px;border-radius:10px 10px 0 0;
+  font-size:15px;font-weight:600;color:var(--muted);
+}
+.tabs button.active{background:var(--card);color:var(--accent)}
+main{max-width:1180px;margin:0 auto;padding:16px 20px 40px}
+.tab{display:none}
+.tab.active{display:block}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:22px;box-shadow:0 6px 24px rgba(30,41,59,.05);
+}
+.card + .card{margin-top:18px}
+h2{font-size:17px;margin-bottom:14px}
+.muted{color:var(--muted);font-size:13px}
+textarea{
+  width:100%;min-height:180px;padding:14px;border:2px solid var(--line);
+  border-radius:12px;font-size:15px;font-family:inherit;resize:vertical;
+  background:#fafbfe;color:var(--text);
+}
+textarea:focus,input:focus{outline:none;border-color:var(--accent);background:#fff}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(135deg,#4f6ef7,#7c5cf0);color:#fff;border:none;
+  padding:11px 20px;border-radius:10px;font-size:15px;font-weight:600;
+  transition:transform .15s,box-shadow .15s;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(79,110,247,.35)}
+.btn:active{transform:none}
+.btn.ghost{background:#eef1f8;color:var(--text)}
+.btn.small{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn.danger{background:#fee2e2;color:#b91c1c}
+.btn.warn{background:#fef3c7;color:#b45309}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.top{margin-bottom:16px}
+input[type=text]{width:100%;padding:11px 12px;border:2px solid var(--line);border-radius:10px;font-size:15px;background:#fafbfe}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151}
+#result{margin-top:16px;font-size:14px;white-space:pre-wrap}
+.msg{padding:10px 14px;border-radius:10px;margin-top:10px;font-size:14px}
+.msg.ok{background:#ecfdf5;color:#047857}
+.msg.err{background:#fef2f2;color:#b91c1c}
+.msg.info{background:#eff6ff;color:#1d4ed8}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
+td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress{height:8px;background:#eef1f8;border-radius:999px;overflow:hidden;min-width:120px}
+.progress>span{display:block;height:100%;background:linear-gradient(90deg,#4f6ef7,#7c5cf0)}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.tag.active{background:#dbeafe;color:#1d4ed8}
+.tag.waiting{background:#fef3c7;color:#b45309}
+.tag.paused{background:#f3f4f6;color:#4b5563}
+.tag.complete{background:#d1fae5;color:#047857}
+.tag.error{background:#fee2e2;color:#b91c1c}
+.tag.removed{background:#f3f4f6;color:#9ca3af}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.empty{padding:34px;text-align:center;color:var(--muted)}
+.overlay{
+  display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);
+  align-items:center;justify-content:center;z-index:100;padding:20px;
+}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:480px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h2{margin-bottom:18px}
+.modal .btn-row{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.footer{color:var(--muted);font-size:12px;text-align:center;padding:0 0 24px}
+@media(max-width:640px){
+  .topbar{padding:12px 14px}
+  .tabs,.main{padding-left:14px;padding-right:14px}
+  th,td{padding:8px 6px}
+  td.name{max-width:140px}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Aria2 下载中心</div>
+  <div class="pill"><span id="connDot" class="dot off"></span><span id="connText">未连接</span></div>
+  <div class="pill">↓ <span id="dlSpeed">-</span></div>
+  <div class="pill">↑ <span id="ulSpeed">-</span></div>
+  <button class="btn ghost small" id="btnReconnect">刷新</button>
+  <button class="btn ghost small" id="btnSettings">设置</button>
+</header>
+
+<nav class="tabs">
+  <button data-tab="accelerator" class="active">GitHub 加速</button>
+  <button data-tab="tasks">下载任务</button>
+</nav>
+
+<main>
+  <section id="tab-accelerator" class="tab active">
+    <div class="card">
+      <h2>GitHub 加速下载</h2>
+      <p class="muted" style="margin-bottom:12px">
+        每行一个链接。GitHub 链接会自动加上加速前缀 <code id="prefixPreview"></code>；非 GitHub 直链 / 磁力链接原样提交。
+      </p>
+      <div class="row top">
+        <button class="btn" id="btnAddUrls">添加到下载</button>
+        <button class="btn ghost" id="btnSettings2">自定义配置</button>
+      </div>
+      <div class="field">
+        <label>下载目录</label>
+        <input type="text" id="accDir" placeholder="留空使用默认目录">
+      </div>
+      <textarea id="urls" placeholder="https://github.com/user/repo/archive/main.zip&#10;https://raw.githubusercontent.com/user/repo/main/file.txt&#10;https://example.com/file.zip&#10;magnet:?xt=urn:btih:..."></textarea>
+      <div id="result"></div>
+    </div>
+  </section>
+
+  <section id="tab-tasks" class="tab">
+    <div class="card">
+      <div class="row top">
+        <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）" style="flex:1;min-width:220px">
+        <button class="btn" id="btnQuickAdd">添加</button>
+        <button class="btn ghost" id="btnPauseAll">全部暂停</button>
+        <button class="btn ghost" id="btnResumeAll">全部继续</button>
+      </div>
+      <div class="muted" style="margin-bottom:10px">保存目录：<span id="quickDir">-</span></div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="taskBody"><tr><td colspan="6" class="empty">正在加载任务…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="footer">aria2c + 自研整合面板 · RPC 由服务端代理，局域网内外均可访问</div>
+
+<div class="overlay" id="modal">
+  <div class="modal">
+    <h2>自定义配置</h2>
+    <div class="field"><label>下载目录</label><input type="text" id="cfgDir" placeholder="留空使用默认目录"><div class="hint">留空则使用 aria2.conf 的默认下载目录</div></div>
+    <div class="field"><label>GitHub 加速前缀</label><input type="text" id="cfgPrefix" placeholder="https://gh.llkk.cc/"><div class="hint">例如 https://gh.llkk.cc/ 、https://gh-proxy.com/</div></div>
+    <div class="btn-row">
+      <button class="btn ghost" id="btnCloseModal">关闭</button>
+      <button class="btn" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const CONFIG_KEY = 'aria2_ui_v1';
+const GITHUB_HOST_RE = /^https?:\/\/(github\.com|raw\.githubusercontent\.com|gist\.github\.com|codeload\.github\.com)(\/|$)/i;
+
+function loadConfig() {
+  const d = { prefix: 'https://gh.llkk.cc/', dir: '' };
+  try {
+    const s = localStorage.getItem(CONFIG_KEY);
+    if (s) Object.assign(d, JSON.parse(s));
+  } catch (e) {}
+  return d;
+}
+let config = loadConfig();
+
+let defaultDir = '';
+let pollTimer = null;
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatBytes(n) {
+  n = Number(n);
+  if (!n || n <= 0) return '-';
+  const u = ['B','KB','MB','GB','TB'];
+  let i = 0, v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (i === 0 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i];
+}
+function formatSpeed(n) { return formatBytes(n) === '-' ? '-' : formatBytes(n) + '/s'; }
+function taskName(t) {
+  if (t.bittorrent && t.bittorrent.info && t.bittorrent.info.name) return t.bittorrent.info.name;
+  if (t.files && t.files.length) {
+    const p = t.files[0].path || '';
+    const name = p.split('/').pop() || p.split('\\').pop();
+    if (name) return name;
+  }
+  return t.gid || '';
+}
+function progressOf(t) {
+  if (t.status === 'complete') return 100;
+  if (t.totalLength > 0) return Math.min(100, Math.max(0, t.completedLength / t.totalLength * 100));
+  return 0;
+}
+function statusInfo(s) {
+  switch (s) {
+    case 'active': return { text: '下载中', cls: 'active' };
+    case 'waiting': return { text: '等待中', cls: 'waiting' };
+    case 'paused': return { text: '已暂停', cls: 'paused' };
+    case 'complete': return { text: '已完成', cls: 'complete' };
+    case 'error': return { text: '错误', cls: 'error' };
+    case 'removed': return { text: '已移除', cls: 'removed' };
+    default: return { text: s || '-', cls: 'paused' };
+  }
+}
+
+async function apiGet(endpoint, params) {
+  let url = './api/' + endpoint;
+  if (params) {
+    const qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+    if (qs) url += '?' + qs;
+  }
+  const resp = await fetch(url, { cache: 'no-store' });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  if (data && data.error) throw new Error(data.error.message || 'RPC 错误');
+  return data;
+}
+
+function persist() {
+  try { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); } catch (e) {}
+}
+
+function refreshDirUI() {
+  const ph = defaultDir || '例如 /var/apps/Aria2/shares/Download';
+  $('accDir').value = config.dir || '';
+  $('accDir').placeholder = ph;
+  $('cfgDir').value = config.dir || '';
+  $('cfgDir').placeholder = ph;
+  $('quickDir').textContent = config.dir || defaultDir || '未知';
+}
+
+function setDir(val) {
+  config.dir = String(val || '').trim();
+  persist();
+  refreshDirUI();
+}
+
+async function loadInfo() {
+  try {
+    const info = await apiGet('info');
+    if (info && info.result && info.result.defaultDir) {
+      defaultDir = info.result.defaultDir;
+    }
+  } catch (e) {}
+  refreshDirUI();
+}
+
+function setConn(on, text) {
+  $('connDot').className = 'dot ' + (on ? 'on' : 'off');
+  $('connText').textContent = text;
+}
+
+async function refresh() {
+  try {
+    const [active, waiting, stopped, stat] = await Promise.all([
+      apiGet('active'), apiGet('waiting'), apiGet('stopped'), apiGet('stat')
+    ]);
+    setConn(true, '已连接');
+    renderTasks(active.result || [], waiting.result || [], stopped.result || []);
+    renderStat(stat.result || {});
+  } catch (e) {
+    setConn(false, '未连接');
+  }
+}
+
+function renderStat(stat) {
+  $('dlSpeed').textContent = formatSpeed(stat.downloadSpeed);
+  $('ulSpeed').textContent = formatSpeed(stat.uploadSpeed);
+}
+
+function renderTasks(active, waiting, stopped) {
+  const body = $('taskBody');
+  const all = [];
+  (active || []).forEach(t => all.push(t));
+  (waiting || []).forEach(t => all.push(t));
+  (stopped || []).forEach(t => all.push(t));
+
+  if (!all.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty">暂无下载任务</td></tr>';
+    return;
+  }
+  body.innerHTML = all.map(t => {
+    const st = statusInfo(t.status);
+    const pct = progressOf(t);
+    let ops = '';
+    if (t.status === 'active' || t.status === 'waiting') {
+      ops += '<button class="btn small ghost" data-act="pause" data-gid="' + esc(t.gid) + '">暂停</button>';
+      ops += '<button class="btn small danger" data-act="forceRemove" data-gid="' + esc(t.gid) + '">删除</button>';
+    } else if (t.status === 'paused') {
+      ops += '<button class="btn small warn" data-act="unpause" data-gid="' + esc(t.gid) + '">继续</button>';
+      ops += '<button class="btn small danger" data-act="forceRemove" data-gid="' + esc(t.gid) + '">删除</button>';
+    } else {
+      ops += '<button class="btn small danger" data-act="remove" data-gid="' + esc(t.gid) + '">移除</button>';
+    }
+    return '<tr>' +
+      '<td class="name" title="' + esc(taskName(t)) + '">' + esc(taskName(t)) + '</td>' +
+      '<td>' + formatBytes(t.totalLength) + '</td>' +
+      '<td style="min-width:140px"><div class="progress"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
+        '<div class="muted">' + pct.toFixed(1) + '%</div></td>' +
+      '<td>' + formatSpeed(t.downloadSpeed) + '</td>' +
+      '<td><span class="tag ' + st.cls + '">' + st.text + '</span></td>' +
+      '<td><div class="actions">' + ops + '</div></td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function taskAction(act, gid) {
+  const ep = { pause: 'pause', unpause: 'unpause', remove: 'remove', forceRemove: 'forceRemove' }[act];
+  if (!ep) return;
+  try {
+    await apiGet(ep, { gid });
+  } catch (e) {
+    showResult('操作失败：' + e.message, 'err');
+  }
+  setTimeout(refresh, 400);
+}
+
+function transformUrl(raw) {
+  const u = String(raw || '').trim();
+  if (!u) return null;
+  if (GITHUB_HOST_RE.test(u)) {
+    const p = String(config.prefix || '').trim().replace(/\/+$/, '');
+    return p ? p + '/' + u : u;
+  }
+  return u;
+}
+function isAddable(u) { return /^(https?:\/\/|magnet:)/i.test(u); }
+
+async function addUrls(lines) {
+  const urls = [];
+  for (const line of lines) {
+    const u = String(line || '').trim();
+    if (!u) continue;
+    if (!isAddable(u)) continue;
+    const target = transformUrl(u);
+    if (target) urls.push(target);
+  }
+  if (!urls.length) { showResult('没有可添加的有效链接（支持 http/https 直链与 magnet 磁力链接）。', 'err'); return; }
+
+  let ok = 0, fail = 0;
+  const msgs = [];
+  for (const u of urls) {
+    const params = { url: u };
+    if (config.dir) params.dir = config.dir;
+    try {
+      await apiGet('add', params);
+      ok++;
+      msgs.push('已添加：' + u);
+    } catch (e) {
+      fail++;
+      msgs.push('添加失败：' + u + '（' + e.message + '）');
+    }
+  }
+  showResult('成功 ' + ok + ' 个，失败 ' + fail + ' 个。\n' + msgs.join('\n'), fail ? 'err' : 'ok');
+  setTimeout(refresh, 500);
+}
+
+function showResult(text, type) {
+  const el = $('result');
+  if (!text) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="msg ' + (type || 'info') + '">' + esc(text) + '</div>';
+}
+
+function openModal() {
+  $('cfgPrefix').value = config.prefix;
+  refreshDirUI();
+  $('modal').classList.add('show');
+}
+function closeModal() { $('modal').classList.remove('show'); }
+
+function saveConfig() {
+  config.prefix = $('cfgPrefix').value.trim() || 'https://gh.llkk.cc/';
+  setDir($('cfgDir').value);
+  $('prefixPreview').textContent = config.prefix;
+  closeModal();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+}
+
+// 事件绑定
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+$('btnReconnect').addEventListener('click', refresh);
+$('btnSettings').addEventListener('click', openModal);
+$('btnSettings2').addEventListener('click', openModal);
+$('btnCloseModal').addEventListener('click', closeModal);
+$('btnSave').addEventListener('click', saveConfig);
+$('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
+$('accDir').addEventListener('input', () => setDir($('accDir').value));
+$('cfgDir').addEventListener('input', () => setDir($('cfgDir').value));
+
+$('btnAddUrls').addEventListener('click', () => addUrls($('urls').value.split('\n')));
+$('btnQuickAdd').addEventListener('click', () => {
+  addUrls([$('quickUrl').value]).then(() => { $('quickUrl').value = ''; });
+});
+$('btnPauseAll').addEventListener('click', async () => { try { await apiGet('pauseAll'); } catch(e){} setTimeout(refresh, 400); });
+$('btnResumeAll').addEventListener('click', async () => { try { await apiGet('unpauseAll'); } catch(e){} setTimeout(refresh, 400); });
+
+$('taskBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  taskAction(btn.dataset.act, btn.dataset.gid);
+});
+
+// 初始化
+$('prefixPreview').textContent = config.prefix;
+refresh();
+pollTimer = setInterval(refresh, 2500);
+window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
+</script>
+</body>
+</html>
+</body>
+</html>

@@ -1,0 +1,17 @@
+appname                    = Aria2
+version                    = 1.0.1
+display_name               = Aria2
+desc                       = <p>🚀Aria2c-1.37.0 自研整合面板，支持HTTP/FTP、BT/磁力下载，内置BT-Tracker，支持DHT网络。内置 GitHub 加速下载：自动为 GitHub 链接添加加速前缀后提交到 Aria2，支持自定义下载目录，并提供任务管理。</p><p>使用说明：RPC 由服务端代理，无需配置端口/密钥，局域网与 fnConnect 远程访问均可使用；可在面板右上角「设置」中修改 GitHub 加速前缀与下载目录。可自行修改 aria2.conf 配置文件使用。</p>
+platform                   = x86
+source                     = thirdparty
+maintainer                 = aria2
+maintainer_url             = https://github.com/aria2/aria2
+distributor                = shuangji66
+distributor_url            = https://github.com/shuangji66/FnDepot
+ctl_stop                   = true
+desktop_uidir              = ui
+desktop_applaunchname      = Aria2.Application
+checkport                  = false
+disable_authorization_path = false
+changelog                  = 新增自定义下载目录；RPC 改为服务端代理支持 fnConnect 远程访问；弃用 AriaNg，重写整合面板并新增 GitHub 加速下载
+checksum                   = 32cf85e53e7fb4a095775fd795d5813b

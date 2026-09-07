@@ -1,0 +1,14 @@
+#!/bin/bash
+CONFIG_TEMPLATE="${TRIM_APPDEST}/template/aria2.tpl"
+CONFIG_FILE="${TRIM_DATA_SHARE_PATHS%%:*}/data/aria2.conf"
+DOWNLOAD_DIR="${TRIM_DATA_SHARE_PATHS%%:*}/Download"
+
+mkdir -p "$DOWNLOAD_DIR"
+
+sed \
+  -e "s|\${PRC_SECRET}|$rpc_secret|g" \
+  -e "s|\${RPC_PORT}|$rpc_port|g" \
+  -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
+  "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+
+exit 0
