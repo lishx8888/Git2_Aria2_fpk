@@ -156,7 +156,9 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
       <div class="row top">
         <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）" style="flex:1;min-width:220px">
         <button class="btn" id="btnQuickAdd">添加</button>
+        <button class="btn ghost" id="btnClearCompleted">清空已完成任务</button>
       </div>
+      <div id="taskMsg"></div>
       <div style="overflow-x:auto">
         <table>
           <thead><tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr></thead>
@@ -167,7 +169,6 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
   </section>
 </main>
 
-<div class="footer">aria2c + 自研整合面板 · RPC 由服务端代理，局域网内外均可访问</div>
 
 <div class="overlay" id="modal">
   <div class="modal">
@@ -255,7 +256,7 @@ async function loadConfig() {
   try {
     const r = await apiGet('config');
     if (r && r.result) {
-      config.prefix = r.result.prefix || 'https://gh.llkk.cc/';
+      config.prefix = r.result.prefix || 'https://github.dpik.top/';
       config.dir = r.result.dir || '';
     }
   } catch (e) {}
@@ -339,7 +340,7 @@ async function taskAction(act, gid) {
   try {
     await apiGet(ep, { gid });
   } catch (e) {
-    showResult('操作失败：' + e.message, 'err');
+    showTaskMsg('操作失败：' + e.message, 'err');
   }
   setTimeout(refresh, 400);
 }
@@ -390,6 +391,32 @@ function showResult(text, type) {
   el.innerHTML = '<div class="msg ' + (type || 'info') + '">' + esc(text) + '</div>';
 }
 
+function showTaskMsg(text, type) {
+  const el = $('taskMsg');
+  if (!text) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="msg ' + (type || 'info') + '">' + esc(text) + '</div>';
+}
+
+async function clearCompletedTasks() {
+  try {
+    const stopped = await apiGet('stopped');
+    const gids = (stopped.result || []).filter(t =>
+      t.status === 'complete' || t.status === 'error' || t.status === 'removed'
+    ).map(t => t.gid);
+    if (!gids.length) {
+      showTaskMsg('没有可清空的已完成任务', 'info');
+      return;
+    }
+    for (const gid of gids) {
+      try { await apiGet('remove', { gid }); } catch (e) {}
+    }
+    showTaskMsg('已清空 ' + gids.length + ' 个已完成/错误/已移除任务', 'ok');
+  } catch (e) {
+    showTaskMsg('清空失败：' + e.message, 'err');
+  }
+  setTimeout(refresh, 400);
+}
+
 function openModal() {
   $('cfgPrefix').value = config.prefix;
   $('cfgDir').value = config.dir || '';
@@ -415,6 +442,7 @@ $('btnAddUrls').addEventListener('click', () => addUrls($('urls').value.split('\
 $('btnQuickAdd').addEventListener('click', () => {
   addUrls([$('quickUrl').value]).then(() => { $('quickUrl').value = ''; });
 });
+$('btnClearCompleted').addEventListener('click', clearCompletedTasks);
 
 $('taskBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-act]');
