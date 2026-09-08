@@ -209,8 +209,6 @@ case "$REL_PATH" in
     /api/active)       rpc_emit aria2.tellActive "[$KEYS_JSON]" ;;
     /api/waiting)      rpc_emit aria2.tellWaiting "0,1000,[$KEYS_JSON]" ;;
     /api/stopped)      rpc_emit aria2.tellStopped "0,1000,[$KEYS_JSON]" ;;
-    /api/pauseAll)     rpc_emit aria2.pauseAll "" ;;
-    /api/unpauseAll)   rpc_emit aria2.unpauseAll "" ;;
     /api/add)
         URL="$(get_param url)"
         if [ -z "$URL" ]; then emit_error "缺少 url 参数"; fi
@@ -231,7 +229,7 @@ case "$REL_PATH" in
     /api/remove)
         GID="$(get_param gid)"
         if [ -z "$GID" ]; then emit_error "缺少 gid 参数"; fi
-        rpc_emit aria2.remove "\"$(json_escape "$GID")\"" ;;
+        rpc_emit aria2.removeDownloadResult "\"$(json_escape "$GID")\"" ;;
     /api/forceRemove)
         GID="$(get_param gid)"
         if [ -z "$GID" ]; then emit_error "缺少 gid 参数"; fi

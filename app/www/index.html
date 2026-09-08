@@ -156,8 +156,6 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
       <div class="row top">
         <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）" style="flex:1;min-width:220px">
         <button class="btn" id="btnQuickAdd">添加</button>
-        <button class="btn ghost" id="btnPauseAll">全部暂停</button>
-        <button class="btn ghost" id="btnResumeAll">全部继续</button>
       </div>
       <div style="overflow-x:auto">
         <table>
@@ -304,10 +302,7 @@ function renderStat(stat) {
 
 function renderTasks(active, waiting, stopped) {
   const body = $('taskBody');
-  const all = [];
-  (active || []).forEach(t => all.push(t));
-  (waiting || []).forEach(t => all.push(t));
-  (stopped || []).forEach(t => all.push(t));
+  const all = (active || []).concat(waiting || [], stopped || []).filter(t => t && t.status !== 'removed');
 
   if (!all.length) {
     body.innerHTML = '<tr><td colspan="6" class="empty">暂无下载任务</td></tr>';
@@ -420,8 +415,6 @@ $('btnAddUrls').addEventListener('click', () => addUrls($('urls').value.split('\
 $('btnQuickAdd').addEventListener('click', () => {
   addUrls([$('quickUrl').value]).then(() => { $('quickUrl').value = ''; });
 });
-$('btnPauseAll').addEventListener('click', async () => { try { await apiGet('pauseAll'); } catch(e){} setTimeout(refresh, 400); });
-$('btnResumeAll').addEventListener('click', async () => { try { await apiGet('unpauseAll'); } catch(e){} setTimeout(refresh, 400); });
 
 $('taskBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-act]');
