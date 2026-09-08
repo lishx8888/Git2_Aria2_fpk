@@ -6,6 +6,9 @@ BASE_PATH="/var/apps/Aria2/target/www"
 # aria2 配置文件路径（由 install_callback/config_callback 生成）
 CONF_FILE="/var/apps/Aria2/shares/data/aria2.conf"
 
+# 面板自定义配置（GitHub 加速前缀 / 默认下载目录）
+UI_CONF_FILE="/var/apps/Aria2/shares/data/ui.conf"
+
 # aria2 RPC 查询用到的字段
 KEYS_JSON='"gid","totalLength","completedLength","downloadSpeed","uploadSpeed","status","files","bittorrent","dir","connections","errorCode","errorMessage"'
 
@@ -42,6 +45,26 @@ read_conf() {
         DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$CONF_FILE" 2>/dev/null | head -n 1 | tr -d '\r')
     fi
     RPC_PORT="${RPC_PORT:-6800}"
+}
+
+# 读取面板自定义配置（前缀 / 目录）
+read_ui_conf() {
+    UI_PREFIX=""
+    UI_DIR=""
+    if [ -f "$UI_CONF_FILE" ]; then
+        UI_PREFIX=$(sed -n 's/^[[:space:]]*prefix[[:space:]]*=[[:space:]]*//p' "$UI_CONF_FILE" 2>/dev/null | head -n 1 | tr -d '\r')
+        UI_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$UI_CONF_FILE" 2>/dev/null | head -n 1 | tr -d '\r')
+    fi
+}
+
+# 写入面板自定义配置
+write_ui_conf() {
+    local prefix="$1"
+    local dir="$2"
+    mkdir -p "$(dirname "$UI_CONF_FILE")"
+    : > "$UI_CONF_FILE"
+    if [ -n "$prefix" ]; then printf 'prefix=%s\n' "$prefix" >> "$UI_CONF_FILE"; fi
+    if [ -n "$dir" ]; then printf 'dir=%s\n' "$dir" >> "$UI_CONF_FILE"; fi
 }
 
 # 从 QUERY_STRING 中取指定 key 并解码
@@ -167,10 +190,21 @@ esac
 
 case "$REL_PATH" in
     /api/stat)         rpc_emit aria2.getGlobalStat "" ;;
-    /api/info)
+    /api/config)
         read_conf
+        read_ui_conf
         emit_json_header
-        echo "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"defaultDir\":\"$(json_escape "${DOWNLOAD_DIR:-}")\"}}"
+        P="$UI_PREFIX"
+        D="$UI_DIR"
+        if [ -z "$D" ]; then D="$DOWNLOAD_DIR"; fi
+        echo "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"prefix\":\"$(json_escape "$P")\",\"dir\":\"$(json_escape "$D")\"}}"
+        exit 0 ;;
+    /api/config/save)
+        P="$(get_param prefix)"
+        D="$(get_param dir)"
+        write_ui_conf "$P" "$D"
+        emit_json_header
+        echo "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"ok\":true}}"
         exit 0 ;;
     /api/active)       rpc_emit aria2.tellActive "[$KEYS_JSON]" ;;
     /api/waiting)      rpc_emit aria2.tellWaiting "0,1000,[$KEYS_JSON]" ;;

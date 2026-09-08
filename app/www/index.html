@@ -146,10 +146,6 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
         <button class="btn" id="btnAddUrls">添加到下载</button>
         <button class="btn ghost" id="btnSettings2">自定义配置</button>
       </div>
-      <div class="field">
-        <label>下载目录</label>
-        <input type="text" id="accDir" placeholder="留空使用默认目录">
-      </div>
       <textarea id="urls" placeholder="https://github.com/user/repo/archive/main.zip&#10;https://raw.githubusercontent.com/user/repo/main/file.txt&#10;https://example.com/file.zip&#10;magnet:?xt=urn:btih:..."></textarea>
       <div id="result"></div>
     </div>
@@ -163,7 +159,6 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
         <button class="btn ghost" id="btnPauseAll">全部暂停</button>
         <button class="btn ghost" id="btnResumeAll">全部继续</button>
       </div>
-      <div class="muted" style="margin-bottom:10px">保存目录：<span id="quickDir">-</span></div>
       <div style="overflow-x:auto">
         <table>
           <thead><tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr></thead>
@@ -179,7 +174,7 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 <div class="overlay" id="modal">
   <div class="modal">
     <h2>自定义配置</h2>
-    <div class="field"><label>下载目录</label><input type="text" id="cfgDir" placeholder="留空使用默认目录"><div class="hint">留空则使用 aria2.conf 的默认下载目录</div></div>
+    <div class="field"><label>默认下载目录</label><input type="text" id="cfgDir" placeholder="例如 /vol1/xxx/Downloads"></div>
     <div class="field"><label>GitHub 加速前缀</label><input type="text" id="cfgPrefix" placeholder="https://gh.llkk.cc/"><div class="hint">例如 https://gh.llkk.cc/ 、https://gh-proxy.com/</div></div>
     <div class="btn-row">
       <button class="btn ghost" id="btnCloseModal">关闭</button>
@@ -191,20 +186,9 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 <script>
 'use strict';
 
-const CONFIG_KEY = 'aria2_ui_v1';
 const GITHUB_HOST_RE = /^https?:\/\/(github\.com|raw\.githubusercontent\.com|gist\.github\.com|codeload\.github\.com)(\/|$)/i;
 
-function loadConfig() {
-  const d = { prefix: 'https://gh.llkk.cc/', dir: '' };
-  try {
-    const s = localStorage.getItem(CONFIG_KEY);
-    if (s) Object.assign(d, JSON.parse(s));
-  } catch (e) {}
-  return d;
-}
-let config = loadConfig();
-
-let defaultDir = '';
+let config = { prefix: 'https://gh.llkk.cc/', dir: '' };
 let pollTimer = null;
 
 const $ = (id) => document.getElementById(id);
@@ -262,33 +246,37 @@ async function apiGet(endpoint, params) {
   return data;
 }
 
-function persist() {
-  try { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); } catch (e) {}
-}
-
-function refreshDirUI() {
-  const ph = defaultDir || '例如 /var/apps/Aria2/shares/Download';
-  $('accDir').value = config.dir || '';
-  $('accDir').placeholder = ph;
+function applyConfigUI() {
+  $('prefixPreview').textContent = config.prefix;
+  $('cfgPrefix').value = config.prefix;
   $('cfgDir').value = config.dir || '';
-  $('cfgDir').placeholder = ph;
-  $('quickDir').textContent = config.dir || defaultDir || '未知';
+  $('cfgDir').placeholder = config.dir || '例如 /vol1/xxx/Downloads';
 }
 
-function setDir(val) {
-  config.dir = String(val || '').trim();
-  persist();
-  refreshDirUI();
-}
-
-async function loadInfo() {
+async function loadConfig() {
   try {
-    const info = await apiGet('info');
-    if (info && info.result && info.result.defaultDir) {
-      defaultDir = info.result.defaultDir;
+    const r = await apiGet('config');
+    if (r && r.result) {
+      config.prefix = r.result.prefix || 'https://gh.llkk.cc/';
+      config.dir = r.result.dir || '';
     }
   } catch (e) {}
-  refreshDirUI();
+  applyConfigUI();
+}
+
+async function saveConfig() {
+  const prefix = $('cfgPrefix').value.trim() || 'https://gh.llkk.cc/';
+  const dir = $('cfgDir').value.trim();
+  try {
+    await apiGet('config/save', { prefix: prefix, dir: dir });
+  } catch (e) {
+    showResult('保存失败：' + e.message, 'err');
+    return;
+  }
+  config.prefix = prefix;
+  config.dir = dir;
+  applyConfigUI();
+  closeModal();
 }
 
 function setConn(on, text) {
@@ -409,17 +397,10 @@ function showResult(text, type) {
 
 function openModal() {
   $('cfgPrefix').value = config.prefix;
-  refreshDirUI();
+  $('cfgDir').value = config.dir || '';
   $('modal').classList.add('show');
 }
 function closeModal() { $('modal').classList.remove('show'); }
-
-function saveConfig() {
-  config.prefix = $('cfgPrefix').value.trim() || 'https://gh.llkk.cc/';
-  setDir($('cfgDir').value);
-  $('prefixPreview').textContent = config.prefix;
-  closeModal();
-}
 
 function switchTab(name) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
@@ -434,8 +415,6 @@ $('btnSettings2').addEventListener('click', openModal);
 $('btnCloseModal').addEventListener('click', closeModal);
 $('btnSave').addEventListener('click', saveConfig);
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
-$('accDir').addEventListener('input', () => setDir($('accDir').value));
-$('cfgDir').addEventListener('input', () => setDir($('cfgDir').value));
 
 $('btnAddUrls').addEventListener('click', () => addUrls($('urls').value.split('\n')));
 $('btnQuickAdd').addEventListener('click', () => {
@@ -451,12 +430,11 @@ $('taskBody').addEventListener('click', (e) => {
 });
 
 // 初始化
-$('prefixPreview').textContent = config.prefix;
+applyConfigUI();
+loadConfig();
 refresh();
 pollTimer = setInterval(refresh, 2500);
 window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
 </script>
-</body>
-</html>
 </body>
 </html>
