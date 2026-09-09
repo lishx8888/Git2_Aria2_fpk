@@ -2,12 +2,22 @@
 CONFIG_TEMPLATE="${TRIM_APPDEST}/template/aria2.tpl"
 CONFIG_FILE="${TRIM_DATA_SHARE_PATHS%%:*}/data/aria2.conf"
 DOWNLOAD_DIR="${TRIM_DATA_SHARE_PATHS%%:*}/Download"
+SERVER_DIR="${TRIM_APPDEST}/server"
+ARIA2C_BIN="${SERVER_DIR}/aria2c"
 
+# 重建软链接（升级/重装时可能失效）
+mkdir -p "$SERVER_DIR"
+rm -f "$SERVER_DIR/README.txt" 2>/dev/null
+if [ ! -L "$ARIA2C_BIN" ]; then
+    rm -f "$ARIA2C_BIN"
+    ln -sfT /usr/bin/aria2c "$ARIA2C_BIN"
+fi
+
+# 生成配置文件
 mkdir -p "$DOWNLOAD_DIR"
-
 sed \
-  -e "s|\${PRC_SECRET}|$rpc_secret|g" \
-  -e "s|\${RPC_PORT}|$rpc_port|g" \
+  -e "s|\${PRC_SECRET}|${rpc_secret:-aria2rpc_secret}|g" \
+  -e "s|\${RPC_PORT}|${rpc_port:-6800}|g" \
   -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
   "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
 

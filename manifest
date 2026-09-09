@@ -1,7 +1,7 @@
 appname                    = Aria2
 version                    = 1.0.1
 display_name               = Aria2
-desc                       = <p>🚀Aria2c-1.37.0 整合面板，支持HTTP/FTP、BT/磁力下载，内置BT-Tracker，支持DHT网络。内置 GitHub 加速下载：自动为 GitHub 链接添加加速前缀后提交到 Aria2，支持自定义下载目录，并提供任务管理。</p><p>使用说明：RPC 由服务端代理，无需配置端口/密钥，局域网与 fnConnect 远程访问均可使用；可在面板右上角「设置」中修改 GitHub 加速前缀与下载目录。可自行修改 aria2.conf 配置文件使用。</p>
+desc                       = <p>🚀Aria2c 整合面板，支持HTTP/FTP、BT/磁力下载，内置BT-Tracker，支持DHT网络。内置 GitHub 加速下载：自动为 GitHub 链接添加加速前缀后提交到 Aria2，支持自定义下载目录，并提供任务管理。</p><p>使用说明：本应用通过软链接复用飞牛系统自带的 aria2c（/usr/bin/aria2c），不再内置二进制，包体积极小且跟随系统升级；RPC 由服务端代理，无需配置端口/密钥，局域网与 fnConnect 远程访问均可使用；可在面板右上角「设置」中修改 GitHub 加速前缀与下载目录。安装向导可自定义 RPC 端口，端口冲突时自动检测并给出提示。</p>
 platform                   = x86
 source                     = thirdparty
 maintainer                 = aria2
@@ -13,5 +13,5 @@ desktop_uidir              = ui
 desktop_applaunchname      = Aria2.Application
 checkport                  = false
 disable_authorization_path = false
-changelog                  = 新增自定义下载目录；RPC 改为服务端代理支持 fnConnect 远程访问；弃用 AriaNg，重写整合面板并新增 GitHub 加速下载
+changelog                  = 弃用内置 aria2c 二进制（41MB），改用软链接复用飞牛系统 /usr/bin/aria2c，包体积极小化且跟随系统升级；新增启动前端口占用检测，冲突时给出明确提示；新增二进制/配置文件存在性校验和自动重建软链接逻辑
 checksum                   = 32cf85e53e7fb4a095775fd795d5813b
