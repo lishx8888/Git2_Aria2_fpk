@@ -28,15 +28,14 @@ body{
 a{color:var(--accent);text-decoration:none}
 button{font-family:inherit;cursor:pointer}
 .topbar{
-  display:flex;align-items:center;gap:14px;
+  display:flex;align-items:center;gap:10px;
   background:linear-gradient(135deg,#4f6ef7,#7c5cf0);
-  color:#fff;padding:14px 20px;flex-wrap:wrap;
+  color:#fff;padding:14px 20px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;
 }
-.brand{font-size:18px;font-weight:700;margin-right:auto}
 .pill{
-  display:inline-flex;align-items:center;gap:8px;
+  display:inline-flex;align-items:center;gap:6px;
   background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
-  padding:6px 12px;border-radius:999px;font-size:13px;
+  padding:6px 12px;border-radius:999px;font-size:13px;white-space:nowrap;
 }
 .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:none}
 .dot.on{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.35)}
@@ -113,7 +112,10 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 .hint{font-size:12px;color:var(--muted);margin-top:4px}
 .footer{color:var(--muted);font-size:12px;text-align:center;padding:0 0 24px}
 @media(max-width:640px){
-  .topbar{padding:12px 14px}
+  .topbar{padding:10px 12px;gap:6px}
+  .pill{padding:4px 8px;font-size:11px;gap:4px}
+  .dot{width:7px;height:7px}
+  .btn.small{padding:5px 10px;font-size:12px;border-radius:8px}
   .tabs,.main{padding-left:14px;padding-right:14px}
   th,td{padding:8px 6px}
   td.name{max-width:140px}
@@ -122,10 +124,9 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">Aria2 下载中心</div>
   <div class="pill"><span id="connDot" class="dot off"></span><span id="connText">未连接</span></div>
   <div class="pill">↓ <span id="dlSpeed">-</span></div>
-  <div class="pill">↑ <span id="ulSpeed">-</span></div>
+  <div class="pill" style="margin-right:auto">↑ <span id="ulSpeed">-</span></div>
   <button class="btn ghost small" id="btnReconnect">刷新</button>
   <button class="btn ghost small" id="btnSettings">设置</button>
 </header>
@@ -144,7 +145,6 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
       </p>
       <div class="row top">
         <button class="btn" id="btnAddUrls">添加到下载</button>
-        <button class="btn ghost" id="btnSettings2">自定义配置</button>
       </div>
       <textarea id="urls" placeholder="https://github.com/user/repo/archive/main.zip&#10;https://raw.githubusercontent.com/user/repo/main/file.txt&#10;https://example.com/file.zip&#10;magnet:?xt=urn:btih:..."></textarea>
       <div id="result"></div>
@@ -433,7 +433,6 @@ function switchTab(name) {
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 $('btnReconnect').addEventListener('click', refresh);
 $('btnSettings').addEventListener('click', openModal);
-$('btnSettings2').addEventListener('click', openModal);
 $('btnCloseModal').addEventListener('click', closeModal);
 $('btnSave').addEventListener('click', saveConfig);
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
