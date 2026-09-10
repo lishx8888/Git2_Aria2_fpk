@@ -108,6 +108,11 @@ fpk-build /path/to/this/repo
 | `${PRC_SECRET}` | 向导变量 `rpc_secret` |
 | `${RPC_PORT}` | 向导变量 `rpc_port` |
 | `${DOWNLOAD_DIR}` | 数据共享目录下的 `Download` |
+| `${SCRIPT_PATH}` | `on-download-complete` 钩子脚本路径 |
+
+### 文件所有权
+
+aria2c 以 root 身份运行（`config/privilege` 中 `run-as: root`），下载完成后通过 `on-download-complete` 钩子脚本自动将文件 chown 为下载目录属主（即飞牛登录用户）。脚本逻辑：钩子与配置文件同目录，运行时从自身位置定位 `ui.conf`（面板自定义目录优先）与 `aria2.conf`（默认目录兜底），读取 `dir=` 后用 `stat -c %u:%g` 查询数字 uid:gid（保留用户组，如 `td:Users`），属主非 root 即执行 `chown -R`。同时 aria2.conf 设置 `umask=000` 确保文件创建时所有用户可访问。
 
 ### 面板配置（ui.conf）
 
