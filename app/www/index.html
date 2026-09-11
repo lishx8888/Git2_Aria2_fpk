@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Aria2 下载中心</title>
 <link rel="icon" href="favicon.png">
 <style>
@@ -19,16 +19,17 @@
   --err:#ef4444;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html,body{height:100%;width:100%}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
   background:var(--bg);color:var(--text);line-height:1.6;
   -webkit-font-smoothing:antialiased;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden;
 }
 a{color:var(--accent);text-decoration:none}
 button{font-family:inherit;cursor:pointer}
 .topbar{
-  display:flex;align-items:center;gap:10px;
+  flex:none;display:flex;align-items:center;gap:10px;
   background:linear-gradient(135deg,#4f6ef7,#7c5cf0);
   color:#fff;padding:14px 20px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;
 }
@@ -40,13 +41,12 @@ button{font-family:inherit;cursor:pointer}
 .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:none}
 .dot.on{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.35)}
 .dot.off{background:#f87171}
-main{max-width:1180px;margin:0 auto;padding:16px 20px 40px}
 .card{
-  background:var(--card);border:1px solid var(--line);border-radius:14px;
-  padding:22px;box-shadow:0 6px 24px rgba(30,41,59,.05);
+  flex:1;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--card);border:none;border-radius:0;
+  padding:16px 20px;width:100%;min-height:0;
 }
 .card + .card{margin-top:18px}
-h2{font-size:17px;margin-bottom:14px}
 .muted{color:var(--muted);font-size:13px}
 input:focus{outline:none;border-color:var(--accent);background:#fff}
 .btn{
@@ -63,19 +63,23 @@ input:focus{outline:none;border-color:var(--accent);background:#fff}
 .btn.warn{background:#fef3c7;color:#b45309}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .row.top{margin-bottom:16px}
-input[type=text]{width:100%;padding:11px 12px;border:2px solid var(--line);border-radius:10px;font-size:15px;background:#fafbfe}
+input[type=text]{flex:1;width:100%;padding:11px 12px;border:2px solid var(--line);border-radius:10px;font-size:16px;background:#fafbfe}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151}
 .msg{padding:10px 14px;border-radius:10px;margin-top:10px;font-size:14px}
 .msg.ok{background:#ecfdf5;color:#047857}
 .msg.err{background:#fef2f2;color:#b91c1c}
 .msg.info{background:#eff6ff;color:#1d4ed8}
+.table-wrap{flex:1;overflow-y:auto;overflow-x:auto;min-height:0;border:1px solid var(--line);border-radius:10px}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
 td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.progress{height:8px;background:#eef1f8;border-radius:999px;overflow:hidden;min-width:120px}
-.progress>span{display:block;height:100%;background:linear-gradient(90deg,#4f6ef7,#7c5cf0)}
+.ring{display:inline-flex;align-items:center;gap:8px}
+.ring svg{width:36px;height:36px;transform:rotate(-90deg)}
+.ring .ring-bg{fill:none;stroke:#eef1f8;stroke-width:4}
+.ring .ring-fg{fill:none;stroke:url(#ringGrad);stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .3s}
+.ring .ring-pct{font-size:12px;font-weight:600;color:var(--muted);min-width:32px;text-align:right}
 .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .tag.active{background:#dbeafe;color:#1d4ed8}
 .tag.waiting{background:#fef3c7;color:#b45309}
@@ -100,13 +104,24 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
   .pill{padding:4px 8px;font-size:11px;gap:4px}
   .dot{width:7px;height:7px}
   .btn.small{padding:5px 10px;font-size:12px;border-radius:8px}
-  .tabs,.main{padding-left:14px;padding-right:14px}
-  th,td{padding:8px 6px}
-  td.name{max-width:140px}
+  .card{padding:12px}
+  th,td{padding:5px 3px;font-size:12px}
+  td.name{max-width:120px}
+  .ring svg{width:28px;height:28px}
+  .ring{gap:4px}
+  .ring-pct{font-size:11px;min-width:26px}
 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f6ef7"/>
+      <stop offset="100%" stop-color="#7c5cf0"/>
+    </linearGradient>
+  </defs>
+</svg>
 <header class="topbar">
   <div class="pill"><span id="connDot" class="dot off"></span><span id="connText">未连接</span></div>
   <div class="pill">↓ <span id="dlSpeed">-</span></div>
@@ -115,22 +130,24 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
   <button class="btn ghost small" id="btnSettings">设置</button>
 </header>
 
-<main>
-  <div class="card">
-    <div class="row top">
-      <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）" style="flex:1;min-width:200px">
-      <button class="btn ghost" id="btnQuickAdd">添加</button>
-      <button class="btn ghost" id="btnClearCompleted">清空已完成任务</button>
-    </div>
-    <div id="taskMsg"></div>
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr></thead>
-        <tbody id="taskBody"><tr><td colspan="6" class="empty">正在加载任务…</td></tr></tbody>
-      </table>
-    </div>
+<div class="card">
+  <div class="row top">
+    <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）">
   </div>
-</main>
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn ghost" id="btnQuickAdd">添加</button>
+    <button class="btn ghost" id="btnClearCompleted">清空已完成任务</button>
+  </div>
+  <div id="taskMsg" style="flex:none"></div>
+  <div class="table-wrap">
+    <table>
+      <thead style="position:sticky;top:0;background:#fff;z-index:1">
+        <tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr>
+      </thead>
+      <tbody id="taskBody"></tbody>
+    </table>
+  </div>
+</div>
 
 
 <div class="overlay" id="modal">
@@ -268,7 +285,7 @@ function renderTasks(active, waiting, stopped) {
   const all = (active || []).concat(waiting || [], stopped || []).filter(t => t && t.status !== 'removed');
 
   if (!all.length) {
-    body.innerHTML = '<tr><td colspan="6" class="empty">暂无下载任务</td></tr>';
+    body.innerHTML = '';
     return;
   }
   body.innerHTML = all.map(t => {
@@ -281,14 +298,19 @@ function renderTasks(active, waiting, stopped) {
     } else if (t.status === 'paused') {
       ops += '<button class="btn small warn" data-act="unpause" data-gid="' + esc(t.gid) + '">继续</button>';
       ops += '<button class="btn small danger" data-act="forceRemove" data-gid="' + esc(t.gid) + '">删除</button>';
+    } else if (t.status === 'complete') {
+      const uri = t.files && t.files[0] && t.files[0].uris && t.files[0].uris[0] && t.files[0].uris[0].uri;
+      if (uri) ops += '<button class="btn small ghost" data-act="copy" data-url="' + esc(stripAcceleratedPrefix(uri)) + '">复制地址</button>';
+      ops += '<button class="btn small danger" data-act="remove" data-gid="' + esc(t.gid) + '">删除</button>';
     } else {
       ops += '<button class="btn small danger" data-act="remove" data-gid="' + esc(t.gid) + '">移除</button>';
     }
+    const circ = 2 * Math.PI * 16; // r=16
+    const dash = circ * (1 - pct / 100);
     return '<tr>' +
       '<td class="name" title="' + esc(taskName(t)) + '">' + esc(taskName(t)) + '</td>' +
       '<td>' + formatBytes(t.totalLength) + '</td>' +
-      '<td style="min-width:140px"><div class="progress"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
-        '<div class="muted">' + pct.toFixed(1) + '%</div></td>' +
+      '<td><div class="ring"><svg viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="16"/><circle class="ring-fg" cx="18" cy="18" r="16" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + dash.toFixed(2) + '"/></svg><span class="ring-pct">' + pct.toFixed(0) + '%</span></div></td>' +
       '<td>' + formatSpeed(t.downloadSpeed) + '</td>' +
       '<td><span class="tag ' + st.cls + '">' + st.text + '</span></td>' +
       '<td><div class="actions">' + ops + '</div></td>' +
@@ -329,22 +351,43 @@ async function addUrls(lines) {
   }
   if (!urls.length) { showResult('没有可添加的有效链接（支持 http/https 直链与 magnet 磁力链接）。', 'err'); return; }
 
-  let ok = 0, fail = 0;
-  const msgs = [];
   for (const u of urls) {
     const params = { url: u };
     if (config.dir) params.dir = config.dir;
     try {
       await apiGet('add', params);
-      ok++;
-      msgs.push('已添加：' + u);
     } catch (e) {
-      fail++;
-      msgs.push('添加失败：' + u + '（' + e.message + '）');
+      showResult('添加失败：' + u + '（' + e.message + '）', 'err');
     }
   }
-  showResult('成功 ' + ok + ' 个，失败 ' + fail + ' 个。\n' + msgs.join('\n'), fail ? 'err' : 'ok');
   setTimeout(refresh, 500);
+}
+
+// 从加速后的 URI 还原原始地址
+function stripAcceleratedPrefix(u) {
+  const p = String(config.prefix || '').trim().replace(/\/+$/, '');
+  if (p && u.startsWith(p + '/')) return u.slice(p.length + 1);
+  return u;
+}
+
+// 复制文本（HTTP 环境降级到 execCommand）
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
+    } catch (e) {
+      reject(e);
+    }
+    document.body.removeChild(ta);
+  });
 }
 
 function showResult(text, type) {
@@ -399,6 +442,12 @@ $('btnClearCompleted').addEventListener('click', clearCompletedTasks);
 $('taskBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-act]');
   if (!btn) return;
+  if (btn.dataset.act === 'copy') {
+    copyText(btn.dataset.url)
+      .then(() => showTaskMsg('已复制原始地址', 'ok'))
+      .catch(() => showTaskMsg('复制失败', 'err'));
+    return;
+  }
   taskAction(btn.dataset.act, btn.dataset.gid);
 });
 
