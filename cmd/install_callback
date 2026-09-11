@@ -3,17 +3,7 @@ CONFIG_TEMPLATE="${TRIM_APPDEST}/template/aria2.tpl"
 CONFIG_FILE="${TRIM_DATA_SHARE_PATHS%%:*}/data/aria2.conf"
 TARGET_DIR="${TRIM_DATA_SHARE_PATHS%%:*}/data"
 DOWNLOAD_DIR="${TRIM_DATA_SHARE_PATHS%%:*}/Download"
-SERVER_DIR="${TRIM_APPDEST}/server"
-ARIA2C_BIN="${SERVER_DIR}/aria2c"
 SCRIPT_FILE="${TARGET_DIR}/on-download-complete"
-
-# 创建软链接到系统 aria2c
-mkdir -p "$SERVER_DIR"
-rm -f "$SERVER_DIR/README.txt" 2>/dev/null
-if [ ! -L "$ARIA2C_BIN" ]; then
-    rm -f "$ARIA2C_BIN"
-    ln -sfT /usr/bin/aria2c "$ARIA2C_BIN"
-fi
 
 # 生成 on-download-complete 钩子脚本
 cat > "$SCRIPT_FILE" << 'HOOK'
