@@ -40,17 +40,7 @@ button{font-family:inherit;cursor:pointer}
 .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:none}
 .dot.on{background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.35)}
 .dot.off{background:#f87171}
-.tabs{
-  display:flex;gap:6px;padding:14px 20px 0;max-width:1180px;margin:0 auto;width:100%;
-}
-.tabs button{
-  background:#e9edf7;border:none;padding:10px 18px;border-radius:10px 10px 0 0;
-  font-size:15px;font-weight:600;color:var(--muted);
-}
-.tabs button.active{background:var(--card);color:var(--accent)}
 main{max-width:1180px;margin:0 auto;padding:16px 20px 40px}
-.tab{display:none}
-.tab.active{display:block}
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:14px;
   padding:22px;box-shadow:0 6px 24px rgba(30,41,59,.05);
@@ -58,12 +48,7 @@ main{max-width:1180px;margin:0 auto;padding:16px 20px 40px}
 .card + .card{margin-top:18px}
 h2{font-size:17px;margin-bottom:14px}
 .muted{color:var(--muted);font-size:13px}
-textarea{
-  width:100%;min-height:180px;padding:14px;border:2px solid var(--line);
-  border-radius:12px;font-size:15px;font-family:inherit;resize:vertical;
-  background:#fafbfe;color:var(--text);
-}
-textarea:focus,input:focus{outline:none;border-color:var(--accent);background:#fff}
+input:focus{outline:none;border-color:var(--accent);background:#fff}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   background:linear-gradient(135deg,#4f6ef7,#7c5cf0);color:#fff;border:none;
@@ -81,7 +66,6 @@ textarea:focus,input:focus{outline:none;border-color:var(--accent);background:#f
 input[type=text]{width:100%;padding:11px 12px;border:2px solid var(--line);border-radius:10px;font-size:15px;background:#fafbfe}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151}
-#result{margin-top:16px;font-size:14px;white-space:pre-wrap}
 .msg{padding:10px 14px;border-radius:10px;margin-top:10px;font-size:14px}
 .msg.ok{background:#ecfdf5;color:#047857}
 .msg.err{background:#fef2f2;color:#b91c1c}
@@ -131,42 +115,21 @@ td.name{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
   <button class="btn ghost small" id="btnSettings">设置</button>
 </header>
 
-<nav class="tabs">
-  <button data-tab="accelerator" class="active">GitHub 加速</button>
-  <button data-tab="tasks">下载任务</button>
-</nav>
-
 <main>
-  <section id="tab-accelerator" class="tab active">
-    <div class="card">
-      <h2>GitHub 加速下载</h2>
-      <p class="muted" style="margin-bottom:12px">
-        每行一个链接。GitHub 链接会自动加上加速前缀 <code id="prefixPreview"></code>；非 GitHub 直链 / 磁力链接原样提交。
-      </p>
-      <div class="row top">
-        <button class="btn" id="btnAddUrls">添加到下载</button>
-      </div>
-      <textarea id="urls" placeholder="https://github.com/user/repo/archive/main.zip&#10;https://raw.githubusercontent.com/user/repo/main/file.txt&#10;https://example.com/file.zip&#10;magnet:?xt=urn:btih:..."></textarea>
-      <div id="result"></div>
+  <div class="card">
+    <div class="row top">
+      <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）" style="flex:1;min-width:200px">
+      <button class="btn ghost" id="btnQuickAdd">添加</button>
+      <button class="btn ghost" id="btnClearCompleted">清空已完成任务</button>
     </div>
-  </section>
-
-  <section id="tab-tasks" class="tab">
-    <div class="card">
-      <div class="row top">
-        <input type="text" id="quickUrl" placeholder="粘贴直链 / 磁力链接（GitHub 链接会自动加速）" style="flex:1;min-width:220px">
-        <button class="btn" id="btnQuickAdd">添加</button>
-        <button class="btn ghost" id="btnClearCompleted">清空已完成任务</button>
-      </div>
-      <div id="taskMsg"></div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead><tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr></thead>
-          <tbody id="taskBody"><tr><td colspan="6" class="empty">正在加载任务…</td></tr></tbody>
-        </table>
-      </div>
+    <div id="taskMsg"></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>名称</th><th>大小</th><th>进度</th><th>速度</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="taskBody"><tr><td colspan="6" class="empty">正在加载任务…</td></tr></tbody>
+      </table>
     </div>
-  </section>
+  </div>
 </main>
 
 
@@ -246,7 +209,6 @@ async function apiGet(endpoint, params) {
 }
 
 function applyConfigUI() {
-  $('prefixPreview').textContent = config.prefix;
   $('cfgPrefix').value = config.prefix;
   $('cfgDir').value = config.dir || '';
   $('cfgDir').placeholder = config.dir || '例如 /vol1/xxx/Downloads';
@@ -386,9 +348,7 @@ async function addUrls(lines) {
 }
 
 function showResult(text, type) {
-  const el = $('result');
-  if (!text) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="msg ' + (type || 'info') + '">' + esc(text) + '</div>';
+  showTaskMsg(text, type);
 }
 
 function showTaskMsg(text, type) {
@@ -424,20 +384,13 @@ function openModal() {
 }
 function closeModal() { $('modal').classList.remove('show'); }
 
-function switchTab(name) {
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
-}
-
 // 事件绑定
-document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 $('btnReconnect').addEventListener('click', refresh);
 $('btnSettings').addEventListener('click', openModal);
 $('btnCloseModal').addEventListener('click', closeModal);
 $('btnSave').addEventListener('click', saveConfig);
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
 
-$('btnAddUrls').addEventListener('click', () => addUrls($('urls').value.split('\n')));
 $('btnQuickAdd').addEventListener('click', () => {
   addUrls([$('quickUrl').value]).then(() => { $('quickUrl').value = ''; });
 });
