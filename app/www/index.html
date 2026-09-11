@@ -58,7 +58,8 @@ input:focus{outline:none;border-color:var(--accent);background:#fff}
 .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(79,110,247,.35)}
 .btn:active{transform:none}
 .btn.ghost{background:#eef1f8;color:var(--text)}
-.btn.small{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn.small{padding:6px 12px;font-size:13px;border-radius:8px;transition:none}
+.btn.small:hover{transform:none;box-shadow:none;filter:brightness(.95)}
 .btn.danger{background:#fee2e2;color:#b91c1c}
 .btn.warn{background:#fef3c7;color:#b45309}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -74,7 +75,7 @@ input[type=text]{flex:1;width:100%;padding:11px 12px;border:2px solid var(--line
 table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-td.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.name{overflow-wrap:break-word;word-break:break-word}
 col.col-name{width:auto}
 col.col-size{width:72px}
 col.col-progress{width:84px}
@@ -113,7 +114,7 @@ th:not(:first-child),td:not(:first-child){text-align:center}
   .btn.small{padding:5px 10px;font-size:12px;border-radius:8px}
   .card{padding:12px}
   th,td{padding:5px 3px;font-size:12px}
-  td.name{max-width:120px}
+  td.name{word-break:break-word}
   col.col-size{width:40px}
   col.col-progress{width:52px}
   col.col-speed{width:40px}
@@ -283,6 +284,9 @@ function setConn(on, text) {
 }
 
 async function refresh() {
+  if (document.hidden) return;
+  const sel = window.getSelection && window.getSelection();
+  if (sel && !sel.isCollapsed) return;
   try {
     const [active, waiting, stopped, stat] = await Promise.all([
       apiGet('active'), apiGet('waiting'), apiGet('stopped'), apiGet('stat')
@@ -290,6 +294,13 @@ async function refresh() {
     setConn(true, '已连接');
     renderTasks(active.result || [], waiting.result || [], stopped.result || []);
     renderStat(stat.result || {});
+    const hasActive = (active.result || []).length > 0;
+    if (hasActive && !pollTimer && !document.hidden) {
+      pollTimer = setInterval(refresh, 2500);
+    } else if (!hasActive && pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
   } catch (e) {
     setConn(false, '未连接');
   }
@@ -433,7 +444,6 @@ async function clearCompletedTasks() {
     for (const gid of gids) {
       try { await apiGet('remove', { gid }); } catch (e) {}
     }
-    showTaskMsg('已清空 ' + gids.length + ' 个已完成/错误/已移除任务', 'ok');
   } catch (e) {
     showTaskMsg('清空失败：' + e.message, 'err');
   }
@@ -473,7 +483,10 @@ $('taskBody').addEventListener('click', (e) => {
 applyConfigUI();
 loadConfig();
 refresh();
-pollTimer = setInterval(refresh, 2500);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  else if (!document.hidden) refresh();
+});
 window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
 </script>
 </body>
