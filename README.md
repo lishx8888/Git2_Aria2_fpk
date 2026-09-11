@@ -172,3 +172,12 @@ RPC 默认端口 6800、BT/DHT 端口 6881-6999 可能被其他实例（如 Dock
 
 **Q：RPC 密钥会泄露到浏览器吗？**
 不会。前端只调用 `/api/*`，由 CGI 在服务端读取 `aria2.conf` 中的密钥并注入 `token:secret`，密钥始终不离开设备。
+
+## 开源致谢
+
+本应用基于以下开源项目：
+
+- [aria2](https://github.com/aria2/aria2) — 下载内核 aria2c（HTTP/FTP/BT/磁力，支持 RPC 与 DHT）
+- [CF-GitHub-Proxy](https://github.com/hubporg/CF-GitHub-Proxy) — GitHub 加速服务，面板默认/自定义加速前缀即基于该类公共代理实现
+
+感谢上述项目作者与社区的贡献。
