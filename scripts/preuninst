@@ -1,0 +1,10 @@
+#!/bin/bash
+# 卸载前执行：确保守护进程已停止
+
+. "$(dirname "$0")/common"
+
+if [ -x "/var/packages/$PKG/scripts/start-stop-status" ]; then
+    "/var/packages/$PKG/scripts/start-stop-status" stop >/dev/null 2>&1 || true
+fi
+
+exit 0

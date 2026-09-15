@@ -1,0 +1,22 @@
+#!/bin/bash
+# 文件复制到 target 前执行：环境检查与端口占用校验
+
+. "$(dirname "$0")/common"
+
+RPC_PORT="$(wizard_value rpc_port 6800)"
+
+# 端口占用检查（best-effort，没有 netstat 则跳过）
+if command -v netstat >/dev/null 2>&1; then
+    if netstat -tln 2>/dev/null | grep -qE "[:.]${RPC_PORT}[[:space:]]"; then
+        echo "错误：RPC 端口 ${RPC_PORT} 已被占用，请在向导中更换端口" >&2
+        exit 1
+    fi
+fi
+
+# 校验内置二进制存在且可执行
+if [ ! -f "$ARIA2C_BIN" ]; then
+    echo "错误：未找到 aria2c 二进制：$ARIA2C_BIN" >&2
+    exit 1
+fi
+
+exit 0

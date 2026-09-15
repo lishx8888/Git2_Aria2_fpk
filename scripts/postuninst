@@ -1,0 +1,8 @@
+#!/bin/bash
+# 卸载后执行：删除应用数据（任务/会话/配置），保留用户下载目录中的文件
+
+. "$(dirname "$0")/common"
+
+rm -rf "$DATA_DIR"
+
+exit 0

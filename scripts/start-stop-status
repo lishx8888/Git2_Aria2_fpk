@@ -1,0 +1,76 @@
+#!/bin/bash
+# 套件中心服务启停脚本，入参：start | stop | status
+
+. "$(dirname "$0")/common"
+
+SVC_LOG="$DATA_DIR/service.log"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$SVC_LOG"
+}
+
+is_running() {
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(head -n 1 "$PID_FILE" | tr -d '[:space:]')
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+start_daemon() {
+    if is_running; then
+        exit 0
+    fi
+    mkdir -p "$DATA_DIR"
+    log_msg "Starting aria2c ..."
+    "$ARIA2C_BIN" --conf-path="$CONF_FILE" --enable-rpc --rpc-listen-all >> "$SVC_LOG" 2>&1 &
+    printf '%s' "$!" > "$PID_FILE"
+    sleep 1
+    if is_running; then
+        exit 0
+    fi
+    log_msg "start failed"
+    rm -f "$PID_FILE"
+    exit 1
+}
+
+stop_daemon() {
+    if ! is_running; then
+        rm -f "$PID_FILE"
+        exit 0
+    fi
+    local pid count=0
+    pid=$(head -n 1 "$PID_FILE" | tr -d '[:space:]')
+    log_msg "send TERM to PID:${pid} ..."
+    kill -TERM "$pid" >/dev/null 2>&1
+    while is_running && [ $count -lt 10 ]; do
+        sleep 1
+        count=$((count + 1))
+    done
+    if is_running; then
+        log_msg "send KILL to PID:${pid} ..."
+        kill -KILL "$pid" >/dev/null 2>&1
+        sleep 1
+    fi
+    rm -f "$PID_FILE"
+    exit 0
+}
+
+status_daemon() {
+    if is_running; then
+        exit 0
+    else
+        rm -f "$PID_FILE"
+        exit 3
+    fi
+}
+
+case "${1:-}" in
+    start)  start_daemon ;;
+    stop)   stop_daemon ;;
+    status) status_daemon ;;
+    *)      exit 1 ;;
+esac

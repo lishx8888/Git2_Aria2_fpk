@@ -1,13 +1,21 @@
 #!/bin/bash
 
-# 静态文件根目录（AriaNg/自研面板）
-BASE_PATH="/var/apps/Aria2/target/www"
+# 本脚本位于 target/ui/index.cgi，安装根目录为其上一级
+SELF_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+TARGET_DIR="$(cd "$SELF_DIR/.." 2>/dev/null && pwd)"
 
-# aria2 配置文件路径（由 install_callback/config_callback 生成）
-CONF_FILE="/var/apps/Aria2/shares/data/aria2.conf"
+# 由 postinst 生成的路径配置（WWW_DIR/DATA_DIR/CONF_FILE/UI_CONF_FILE）
+PATHS_CONF="$TARGET_DIR/conf/paths.conf"
+WWW_DIR="$TARGET_DIR/www"
+DATA_DIR=""
+CONF_FILE=""
+UI_CONF_FILE=""
+[ -f "$PATHS_CONF" ] && . "$PATHS_CONF"
+: "${CONF_FILE:=$DATA_DIR/aria2.conf}"
+: "${UI_CONF_FILE:=$DATA_DIR/ui.conf}"
 
-# 面板自定义配置（GitHub 加速前缀 / 默认下载目录）
-UI_CONF_FILE="/var/apps/Aria2/shares/data/ui.conf"
+# 静态文件根目录（自研面板）
+BASE_PATH="$WWW_DIR"
 
 # aria2 RPC 查询用到的字段
 KEYS_JSON='"gid","totalLength","completedLength","downloadSpeed","uploadSpeed","status","files","bittorrent","dir","connections","errorCode","errorMessage"'

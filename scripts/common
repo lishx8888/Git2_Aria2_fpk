@@ -1,0 +1,88 @@
+#!/bin/bash
+# 群晖 SPK 生命周期脚本公共函数与路径定义
+# 被 preinst/postinst/postupgrade/preuninst/postuninst/start-stop-status source
+
+PKG="Aria2"
+
+: "${SYNOPKG_PKGDEST:=/var/packages/$PKG/target}"
+
+# 部分调用场景可能没有 SYNOPKG_PKGDEST_VOL，从 target 软链接 (/volumeX/@appstore/Aria2) 反推
+if [ -z "${SYNOPKG_PKGDEST_VOL:-}" ]; then
+    LINK_TARGET="$(readlink "$SYNOPKG_PKGDEST" 2>/dev/null)"
+    case "$LINK_TARGET" in
+        /volume*) SYNOPKG_PKGDEST_VOL="${LINK_TARGET%%/@appstore/*}" ;;
+    esac
+    : "${SYNOPKG_PKGDEST_VOL:=/volume1}"
+fi
+
+DATA_DIR="$SYNOPKG_PKGDEST_VOL/@appdata/$PKG"
+DOWNLOAD_DIR="$SYNOPKG_PKGDEST_VOL/downloads"
+CONF_FILE="$DATA_DIR/aria2.conf"
+UI_CONF_FILE="$DATA_DIR/ui.conf"
+PATHS_CONF="$SYNOPKG_PKGDEST/conf/paths.conf"
+HOOK_FILE="$DATA_DIR/on-download-complete"
+TPL_FILE="$SYNOPKG_PKGDEST/template/aria2.tpl"
+ARIA2C_BIN="$SYNOPKG_PKGDEST/server/aria2c"
+PID_FILE="$DATA_DIR/aria2.pid"
+
+# CGI（http 用户运行）读取的路径配置，只包含路径不含密钥
+write_paths_conf() {
+    mkdir -p "$(dirname "$PATHS_CONF")"
+    cat > "$PATHS_CONF" <<EOF
+WWW_DIR="$SYNOPKG_PKGDEST/www"
+DATA_DIR="$DATA_DIR"
+CONF_FILE="$CONF_FILE"
+UI_CONF_FILE="$UI_CONF_FILE"
+DOWNLOAD_DIR="$DOWNLOAD_DIR"
+EOF
+    chmod 755 "$(dirname "$PATHS_CONF")"
+    chmod 644 "$PATHS_CONF"
+}
+
+# 下载完成钩子：把文件 chown 为下载目录属主（数字 uid:gid，保留用户组）
+write_hook() {
+    cat > "$HOOK_FILE" << 'HOOK'
+#!/bin/bash
+# aria2 on-download-complete / on-bt-download-complete 钩子
+# 参数: $1=gid, $2=文件数量, $3=第一个文件路径
+FILEPATH="$3"
+[ -z "$FILEPATH" ] && exit 0
+SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
+trim() { sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
+DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/ui.conf" 2>/dev/null | head -1 | trim)
+[ -z "$DOWNLOAD_DIR" ] && DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/aria2.conf" 2>/dev/null | head -1 | trim)
+OWNER=$(stat -c %u:%g "$DOWNLOAD_DIR" 2>/dev/null)
+OWNER_UID=${OWNER%%:*}
+if [ -n "$OWNER_UID" ] && [ "$OWNER_UID" != "0" ]; then
+  chown -R "$OWNER" "$FILEPATH" 2>/dev/null
+fi
+exit 0
+HOOK
+    chmod 755 "$HOOK_FILE"
+}
+
+# 渲染 aria2.conf：$1=密钥 $2=端口
+render_conf() {
+    local secret="$1"
+    local port="$2"
+    sed \
+        -e "s|\${PRC_SECRET}|${secret}|g" \
+        -e "s|\${RPC_PORT}|${port}|g" \
+        -e "s|\${DATA_DIR}|$DATA_DIR|g" \
+        -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
+        -e "s|\${SCRIPT_PATH}|$HOOK_FILE|g" \
+        "$TPL_FILE" > "$CONF_FILE"
+    chmod 644 "$CONF_FILE"
+}
+
+# 取向导入参（兼容 $name 与 $wizard_name 两种注入约定）
+wizard_value() {
+    local key="$1"
+    local def="$2"
+    local val
+    eval "val=\${$key:-}"
+    if [ -z "$val" ]; then
+        eval "val=\${wizard_$key:-}"
+    fi
+    echo "${val:-$def}"
+}
