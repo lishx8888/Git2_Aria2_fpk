@@ -1,15 +1,15 @@
 #!/bin/bash
-# 文件复制完成后执行：创建数据目录、生成配置与钩子、初始化数据文件
+# 文件复制完成后执行：创建数据目录、生成配置、初始化数据文件
+# 注意：生命周期脚本以 root 运行；守护进程本身由框架降权为 sc-Aria2
 
 . "$(dirname "$0")/common"
 set -e
 
 RPC_SECRET="$(wizard_value rpc_secret aria2rpc_secret)"
 RPC_PORT="$(wizard_value rpc_port 6800)"
-
-# 数据目录（@appdata）与下载目录（系统默认共享文件夹 downloads）
-mkdir -p "$DATA_DIR" "$DOWNLOAD_DIR"
-chmod 777 "$DATA_DIR"
+# 向导键名约定为 wizard_share_name，wizard_value 会兼容 $share_name
+SHARE_NAME="$(wizard_value share_name downloads)"
+DOWNLOAD_DIR="$(resolve_share_path "$SHARE_NAME")"
 
 # 校验内置二进制存在且可执行（此时 package.tgz 已解压到 target）
 if [ ! -x "$ARIA2C_BIN" ]; then
@@ -18,16 +18,26 @@ if [ ! -x "$ARIA2C_BIN" ]; then
 fi
 chmod 755 "$ARIA2C_BIN"
 
-# CGI 路径配置、下载完成钩子、aria2.conf
+# 下载共享目录（data-share worker 已建共享并授权 sc-Aria2 读写；此处兜底创建）
+if [ ! -d "$DOWNLOAD_DIR" ]; then
+    mkdir -p "$DOWNLOAD_DIR"
+    chmod 777 "$DOWNLOAD_DIR"
+fi
+
+# 运行数据目录：属主 sc-Aria2，755 允许 http(CGI) 进入读取
+mkdir -p "$DATA_DIR"
+chmod 755 "$DATA_DIR"
+
+# CGI 路径配置、aria2.conf
 write_paths_conf
-write_hook
 render_conf "$RPC_SECRET" "$RPC_PORT"
 
-# 初始化运行期文件；ui.conf 需被 CGI（http 用户）改写，放 666
-for file in aria2.session dht.dat dht6.dat; do
+# 初始化运行期文件（会话/DHT/日志由 sc-Aria2 写，ui.conf 需 http 改写）
+for file in aria2.session dht.dat dht6.dat aria2.log service.log; do
     [ ! -f "$DATA_DIR/$file" ] && touch "$DATA_DIR/$file"
 done
 [ ! -f "$UI_CONF_FILE" ] && touch "$UI_CONF_FILE"
 chmod 666 "$UI_CONF_FILE"
+chown -R "$PKG_USER:$PKG_USER" "$DATA_DIR"
 
 exit 0

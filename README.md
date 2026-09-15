@@ -14,8 +14,9 @@
 - GitHub 加速：自动为 GitHub 链接添加加速前缀后提交下载，前缀可在面板「设置」中自定义
 - 任务管理：查看下载中/等待中/已停止任务，暂停、继续、删除任务，清空已完成任务
 - 自定义默认下载目录，配置持久化保存
-- 安装向导弹窗设置 RPC 密钥与监听端口（端口占用会在安装前拦截）
-- 下载完成自动把文件属主修正为下载目录属主
+- 安装向导设置下载共享文件夹（不存在自动创建并授权）、RPC 密钥与监听端口（端口占用会在安装前拦截）
+- 遵循 DSM 7 安全模型：守护进程以套件系统用户 `sc-Aria2` 运行，不使用 root 权限
+- `umask=000` + 共享文件夹 ACL，保证 DSM 用户可直接访问下载的文件
 
 ## 目录结构（SPK 源码布局）
 
@@ -25,16 +26,16 @@ Aria2/
 ├── PACKAGE_ICON.PNG            # 套件中心图标（DSM7 要求 64x64）
 ├── PACKAGE_ICON_256.PNG        # 套件中心图标（256x256）
 ├── WIZARD_UIFILES/
-│   └── install_uifile          # 安装向导（RPC 密钥/端口，DSM 标准向导格式）
+│   └── install_uifile          # 安装向导（下载共享文件夹、RPC 密钥/端口）
 ├── build.sh                    # 本地打包脚本，生成 .spk
 ├── conf/
-│   ├── privilege               # 运行身份（run-as: root）
-│   └── resource                # 资源声明（本包无需系统资源注册）
+│   ├── privilege               # 运行身份（run-as: package → sc-Aria2）
+│   └── resource                # data-share：向导共享文件夹授权 sc-Aria2 读写
 ├── scripts/                    # 生命周期脚本
 │   ├── common                  # 公共路径与函数（被各脚本 source）
 │   ├── preinst                 # 安装前：端口占用检查
-│   ├── postinst                # 安装后：建目录、渲染 aria2.conf、写钩子
-│   ├── postupgrade             # 升级后：保留用户配置，刷新钩子/路径
+│   ├── postinst                # 安装后：建目录、渲染 aria2.conf、设置属主
+│   ├── postupgrade             # 升级后：保留用户配置，刷新路径/权限
 │   ├── preuninst               # 卸载前：停止服务
 │   ├── postuninst              # 卸载后：删除 @appdata 数据（保留下载文件）
 │   └── start-stop-status       # 套件中心 start/stop/status
@@ -60,13 +61,13 @@ package/ui/index.cgi (Bash CGI，DSM webman 执行)
    │  读取 @appdata/Aria2/aria2.conf 获取端口与密钥，注入 token:secret
    │  转发到 http://127.0.0.1:<rpc_port>/jsonrpc
    ▼
-aria2c (target/server/aria2c，套件自管守护进程)
+aria2c (target/server/aria2c，以系统用户 sc-Aria2 运行的守护进程)
    │  配置：/volumeX/@appdata/Aria2/aria2.conf（由 aria2.tpl 渲染）
    ▼
-下载目录 /volumeX/downloads（可在面板设置中修改）
+下载共享文件夹 /volumeX/<向导指定名称，默认 downloads>（可在面板设置中改其他已授权目录）
 ```
 
-1. 安装时 [scripts/](scripts/) 依次执行 WIZARD_UIFILES 向导弹窗 → preinst（端口检查）→ 文件展开 → postinst（建目录、渲染配置、写钩子）
+1. 安装时 [scripts/](scripts/) 依次执行 WIZARD_UIFILES 向导弹窗 → preinst（端口检查）→ data-share 资源授权 → 文件展开 → postinst（建目录、渲染配置、设置属主）
 2. 套件中心通过 `start-stop-status` 启停 aria2c，PID 记录在 `@appdata/Aria2/aria2.pid`
 3. 面板配置（加速前缀、下载目录）保存在 `@appdata/Aria2/ui.conf`
 
@@ -80,7 +81,7 @@ aria2c (target/server/aria2c，套件自管守护进程)
 | 会话 / DHT | `@appdata/Aria2/aria2.session`、`dht.dat`、`dht6.dat` |
 | aria2 日志 | `@appdata/Aria2/aria2.log`、`service.log` |
 | 面板配置 | `@appdata/Aria2/ui.conf` |
-| 默认下载目录 | `/volume1/downloads` |
+| 默认下载目录 | `/volume1/downloads`（向导共享文件夹，可自定义名称） |
 
 卷号由 `SYNOPKG_PKGDEST_VOL` 自动推导，多卷环境也能正确定位。
 
@@ -97,7 +98,7 @@ chmod +x build.sh
 SPK 为未签名包，安装方式：
 
 1. DSM → 套件中心 → 右上角设置 → 「套件来源」信任等级设为「任何发行者」（或安装时勾选仍要安装）
-2. 套件中心 → 手动安装 → 选择 `.spk` → 按向导设置 RPC 密钥/端口 → 完成
+2. 套件中心 → 手动安装 → 选择 `.spk` → 按向导设置下载共享文件夹、RPC 密钥/端口 → 完成
 3. DSM 主菜单点击 Aria2 图标打开面板
 
 ## 配置说明
@@ -106,6 +107,7 @@ SPK 为未签名包，安装方式：
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
+| `wizard_share_name` | 下载用共享文件夹名称，不存在则自动创建，框架自动授予 `sc-Aria2` 读写权限 | `downloads` |
 | `rpc_secret` | RPC 访问密钥，仅服务端使用，不暴露给前端 | `aria2rpc_secret` |
 | `rpc_port` | aria2c RPC 监听端口 | `6800` |
 
@@ -118,12 +120,14 @@ SPK 为未签名包，安装方式：
 | `${PRC_SECRET}` | 向导变量 `rpc_secret` |
 | `${RPC_PORT}` | 向导变量 `rpc_port` |
 | `${DATA_DIR}` | `/volumeX/@appdata/Aria2` |
-| `${DOWNLOAD_DIR}` | `/volumeX/downloads` |
-| `${SCRIPT_PATH}` | `on-download-complete` 钩子路径 |
+| `${DOWNLOAD_DIR}` | 向导共享文件夹真实路径 |
 
-### 文件所有权
+### 运行身份与文件权限（DSM 7 安全模型）
 
-aria2c 以 root 运行，下载完成后 `on-download-complete` 钩子读取面板自定义目录（ui.conf 优先）或 aria2.conf 的 `dir=`，用 `stat -c %u:%g` 查询数字 uid:gid，属主非 root 即执行 `chown -R`，让下载文件归属共享文件夹属主；aria2.conf 同时设置 `umask=000` 兜底保证可访问。
+- 守护进程与 `start-stop-status` 以系统内部用户 `sc-Aria2` 运行（[conf/privilege](conf/privilege) 声明 `run-as: package`，用户由套件框架自动创建），不申请 root 权限，可正常安装
+- 下载共享文件夹通过 [conf/resource](conf/resource) 的 `data-share` 声明，安装时由 DSM 资源服务创建/授权，`sc-Aria2` 拥有读写 ACL
+- 下载文件由 `sc-Aria2` 创建，aria2.conf 设置 `umask=000`（文件 666/目录 777），配合共享文件夹自身的 ACL，DSM 用户经 File Station/SMB 均可正常读写
+- 在面板设置里改为**其他目录**时，需先在「控制面板 → 共享文件夹 → 编辑 → 权限 → 系统内部用户」授予 `sc-Aria2` 读写，否则该目录无法写入
 
 ## HTTP 接口（index.cgi）
 
@@ -147,7 +151,7 @@ aria2c 以 root 运行，下载完成后 `on-download-complete` 钩子读取面�
 
 ## 卸载行为
 
-卸载会删除 `/volumeX/@appdata/Aria2`（任务列表、会话、配置），**不会删除** `/volumeX/downloads` 中已下载的文件。
+卸载会删除 `/volumeX/@appdata/Aria2`（任务列表、会话、配置），**不会删除**下载共享文件夹中的已下载文件（共享文件夹本身保留，如需删除请在「控制面板 → 共享文件夹」手动操作）。
 
 ## 常见问题
 

@@ -1,25 +1,32 @@
 #!/bin/bash
-# 升级后执行：保留既有 aria2.conf（含用户密钥/端口），仅刷新路径配置与钩子
+# 升级后执行：保留既有 aria2.conf（含用户密钥/端口），刷新路径配置与权限
 
 . "$(dirname "$0")/common"
 set -e
 
+# 从旧版本写入的 paths.conf 恢复下载目录
+if [ -f "$PATHS_CONF" ]; then
+    _dl="$(sed -n 's/^DOWNLOAD_DIR="\(.*\)"$/\1/p' "$PATHS_CONF" | head -1)"
+    [ -n "$_dl" ] && DOWNLOAD_DIR="$_dl"
+fi
+[ -z "$DOWNLOAD_DIR" ] && DOWNLOAD_DIR="$(resolve_share_path downloads)"
+
 mkdir -p "$DATA_DIR" "$DOWNLOAD_DIR"
-chmod 777 "$DATA_DIR"
+chmod 755 "$DATA_DIR"
 chmod 755 "$ARIA2C_BIN"
 
 write_paths_conf
-write_hook
 
 # 旧版本残留或配置丢失时，用默认值补一份
 if [ ! -f "$CONF_FILE" ]; then
     render_conf aria2rpc_secret 6800
 fi
 
-for file in aria2.session dht.dat dht6.dat; do
+for file in aria2.session dht.dat dht6.dat aria2.log service.log; do
     [ ! -f "$DATA_DIR/$file" ] && touch "$DATA_DIR/$file"
 done
 [ ! -f "$UI_CONF_FILE" ] && touch "$UI_CONF_FILE"
 chmod 666 "$UI_CONF_FILE"
+chown -R "$PKG_USER:$PKG_USER" "$DATA_DIR"
 
 exit 0

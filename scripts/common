@@ -3,6 +3,8 @@
 # 被 preinst/postinst/postupgrade/preuninst/postuninst/start-stop-status source
 
 PKG="Aria2"
+# DSM7 安全模型：守护进程以套件系统用户 sc-Aria2 运行（由框架自动创建）
+PKG_USER="sc-$PKG"
 
 : "${SYNOPKG_PKGDEST:=/var/packages/$PKG/target}"
 
@@ -15,15 +17,32 @@ if [ -z "${SYNOPKG_PKGDEST_VOL:-}" ]; then
     : "${SYNOPKG_PKGDEST_VOL:=/volume1}"
 fi
 
-DATA_DIR="$SYNOPKG_PKGDEST_VOL/@appdata/$PKG"
-DOWNLOAD_DIR="$SYNOPKG_PKGDEST_VOL/downloads"
+# 运行数据目录优先使用框架提供的 SYNOPKG_PKGVAR（/volumeX/@appdata/Aria2）
+DATA_DIR="${SYNOPKG_PKGVAR:-$SYNOPKG_PKGDEST_VOL/@appdata/$PKG}"
+# 默认下载目录在 resolve_share_path 后确定
+DOWNLOAD_DIR=""
 CONF_FILE="$DATA_DIR/aria2.conf"
 UI_CONF_FILE="$DATA_DIR/ui.conf"
 PATHS_CONF="$SYNOPKG_PKGDEST/conf/paths.conf"
-HOOK_FILE="$DATA_DIR/on-download-complete"
 TPL_FILE="$SYNOPKG_PKGDEST/template/aria2.tpl"
 ARIA2C_BIN="$SYNOPKG_PKGDEST/server/aria2c"
 PID_FILE="$DATA_DIR/aria2.pid"
+
+# 解析向导指定的共享文件夹真实路径
+# data-share 资源 worker 会在安装时创建共享并在 /var/packages/<PKG>/shares/<名称> 建软链
+resolve_share_path() {
+    local share_name="$1"
+    local link="/var/packages/$PKG/shares/$share_name"
+    local p=""
+    p="$(realpath "$link" 2>/dev/null)"
+    if [ -z "$p" ] || [ ! -d "$p" ]; then
+        if command -v synoshare >/dev/null 2>&1 && synoshare --get "$share_name" >/dev/null 2>&1; then
+            p="$(synoshare --get "$share_name" | awk 'NR==4' | cut -d] -f1 | cut -d[ -f2)"
+        fi
+    fi
+    [ -z "$p" ] && p="$SYNOPKG_PKGDEST_VOL/$share_name"
+    echo "$p"
+}
 
 # CGI（http 用户运行）读取的路径配置，只包含路径不含密钥
 write_paths_conf() {
@@ -39,28 +58,6 @@ EOF
     chmod 644 "$PATHS_CONF"
 }
 
-# 下载完成钩子：把文件 chown 为下载目录属主（数字 uid:gid，保留用户组）
-write_hook() {
-    cat > "$HOOK_FILE" << 'HOOK'
-#!/bin/bash
-# aria2 on-download-complete / on-bt-download-complete 钩子
-# 参数: $1=gid, $2=文件数量, $3=第一个文件路径
-FILEPATH="$3"
-[ -z "$FILEPATH" ] && exit 0
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
-trim() { sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
-DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/ui.conf" 2>/dev/null | head -1 | trim)
-[ -z "$DOWNLOAD_DIR" ] && DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/aria2.conf" 2>/dev/null | head -1 | trim)
-OWNER=$(stat -c %u:%g "$DOWNLOAD_DIR" 2>/dev/null)
-OWNER_UID=${OWNER%%:*}
-if [ -n "$OWNER_UID" ] && [ "$OWNER_UID" != "0" ]; then
-  chown -R "$OWNER" "$FILEPATH" 2>/dev/null
-fi
-exit 0
-HOOK
-    chmod 755 "$HOOK_FILE"
-}
-
 # 渲染 aria2.conf：$1=密钥 $2=端口
 render_conf() {
     local secret="$1"
@@ -70,12 +67,11 @@ render_conf() {
         -e "s|\${RPC_PORT}|${port}|g" \
         -e "s|\${DATA_DIR}|$DATA_DIR|g" \
         -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
-        -e "s|\${SCRIPT_PATH}|$HOOK_FILE|g" \
         "$TPL_FILE" > "$CONF_FILE"
     chmod 644 "$CONF_FILE"
 }
 
-# 取向导入参（兼容 $name 与 $wizard_name 两种注入约定）
+# 向导入参（兼容 $name 与 $wizard_name 两种注入约定）
 wizard_value() {
     local key="$1"
     local def="$2"

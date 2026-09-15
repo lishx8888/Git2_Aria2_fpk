@@ -1,1 +1,12 @@
-{}
+{
+  "data-share": {
+    "shares": [
+      {
+        "name": "{{wizard_share_name}}",
+        "permission": {
+          "rw": ["sc-Aria2"]
+        }
+      }
+    ]
+  }
+}

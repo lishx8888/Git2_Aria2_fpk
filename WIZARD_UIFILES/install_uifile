@@ -1,5 +1,23 @@
 [
   {
+    "step_title": "下载共享文件夹",
+    "items": [
+      {
+        "type": "textfield",
+        "desc": "下载文件保存到的共享文件夹名称（仅名称，如 downloads；不存在会自动创建，已存在则授权套件读写）。安装后也可在面板设置中改为其他已授权目录。",
+        "key": "wizard_share_name",
+        "defaultValue": "downloads",
+        "validator": {
+          "allowBlank": false,
+          "regex": {
+            "expr": "^[A-Za-z0-9_\\-\\. ]{1,32}$",
+            "invalidText": "请输入 1-32 位共享文件夹名称（字母、数字、空格、_ - .）"
+          }
+        }
+      }
+    ]
+  },
+  {
     "step_title": "Aria2 RPC 设置",
     "items": [
       {
