@@ -1,7 +1,11 @@
 # 生命周期脚本与 CGI 必须保持 LF 换行，否则在 DSM（Linux）上无法执行
 scripts/* text eol=lf
 package/ui/index.cgi text eol=lf
+package/ui/config text eol=lf
+WIZARD_UIFILES/* text eol=lf
 package/template/* text eol=lf
+INFO text eol=lf
+conf/* text eol=lf
 build.sh text eol=lf
 
 # 内置二进制与图标不做换行转换

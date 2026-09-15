@@ -10,6 +10,12 @@ RPC_PORT="$(wizard_value rpc_port 6800)"
 # 数据目录（@appdata）与下载目录（系统默认共享文件夹 downloads）
 mkdir -p "$DATA_DIR" "$DOWNLOAD_DIR"
 chmod 777 "$DATA_DIR"
+
+# 校验内置二进制存在且可执行（此时 package.tgz 已解压到 target）
+if [ ! -x "$ARIA2C_BIN" ]; then
+    echo "错误：未找到可执行的 aria2c 二进制：$ARIA2C_BIN" >&2
+    exit 1
+fi
 chmod 755 "$ARIA2C_BIN"
 
 # CGI 路径配置、下载完成钩子、aria2.conf

@@ -1,0 +1,26 @@
+[
+  {
+    "step_title": "Aria2 RPC 设置",
+    "items": [
+      {
+        "type": "password",
+        "desc": "RPC 访问密钥（仅服务端使用，不下发浏览器）。",
+        "key": "rpc_secret",
+        "defaultValue": "aria2rpc_secret"
+      },
+      {
+        "type": "textfield",
+        "desc": "RPC 监听端口（默认 6800，请确认端口未被占用）。",
+        "key": "rpc_port",
+        "defaultValue": "6800",
+        "validator": {
+          "allowBlank": false,
+          "regex": {
+            "expr": "^[0-9]{1,5}$",
+            "invalidText": "请输入 1-65535 之间的端口号"
+          }
+        }
+      }
+    ]
+  }
+]

@@ -22,15 +22,16 @@
 ```
 Aria2/
 ├── INFO                        # 套件清单（套件名、版本、arch、入口等）
-├── PACKAGE_ICON.PNG            # 套件图标（72px）
-├── PACKAGE_ICON_256.PNG        # 套件图标（256px）
+├── PACKAGE_ICON.PNG            # 套件中心图标（DSM7 要求 64x64）
+├── PACKAGE_ICON_256.PNG        # 套件中心图标（256x256）
+├── WIZARD_UIFILES/
+│   └── install_uifile          # 安装向导（RPC 密钥/端口，DSM 标准向导格式）
 ├── build.sh                    # 本地打包脚本，生成 .spk
 ├── conf/
 │   ├── privilege               # 运行身份（run-as: root）
-│   └── resource                # DSM 桌面入口注册（.url → 3rdparty CGI）
+│   └── resource                # 资源声明（本包无需系统资源注册）
 ├── scripts/                    # 生命周期脚本
 │   ├── common                  # 公共路径与函数（被各脚本 source）
-│   ├── installer               # 安装向导（-e/-g/-s 协议，设置 RPC 密钥/端口）
 │   ├── preinst                 # 安装前：端口占用检查
 │   ├── postinst                # 安装后：建目录、渲染 aria2.conf、写钩子
 │   ├── postupgrade             # 升级后：保留用户配置，刷新钩子/路径
@@ -39,8 +40,9 @@ Aria2/
 │   └── start-stop-status       # 套件中心 start/stop/status
 └── package/                    # 安装后展开到 /var/packages/Aria2/target
     ├── ui/
+    │   ├── config              # DSM 桌面入口注册（.url → 3rdparty CGI）
     │   ├── index.cgi           # Bash CGI：静态服务 + RPC 代理 + 面板配置接口
-    │   └── images/             # 桌面入口图标（icon_64/icon_256）
+    │   └── images/             # 桌面入口图标（icon_72/icon_256）
     ├── www/                    # 前端面板（单文件 index.html）
     ├── template/
     │   └── aria2.tpl           # aria2.conf 模板，postinst 变量替换
@@ -64,7 +66,7 @@ aria2c (target/server/aria2c，套件自管守护进程)
 下载目录 /volumeX/downloads（可在面板设置中修改）
 ```
 
-1. 安装时 [scripts/](scripts/) 依次执行向导 → preinst（端口检查）→ 文件展开 → postinst（建目录、渲染配置、写钩子）
+1. 安装时 [scripts/](scripts/) 依次执行 WIZARD_UIFILES 向导弹窗 → preinst（端口检查）→ 文件展开 → postinst（建目录、渲染配置、写钩子）
 2. 套件中心通过 `start-stop-status` 启停 aria2c，PID 记录在 `@appdata/Aria2/aria2.pid`
 3. 面板配置（加速前缀、下载目录）保存在 `@appdata/Aria2/ui.conf`
 

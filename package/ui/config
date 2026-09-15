@@ -1,0 +1,13 @@
+{
+  ".url": {
+    "Aria2.Application": {
+      "type": "url",
+      "title": "Aria2",
+      "desc": "Aria2 下载中心",
+      "icon": "images/icon_{0}.png",
+      "url": "3rdparty/Aria2/index.cgi/",
+      "allUsers": true,
+      "allowMultiInstance": false
+    }
+  }
+}
