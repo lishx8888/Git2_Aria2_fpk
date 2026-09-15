@@ -2,8 +2,7 @@
 # 在 Linux / WSL / macOS / Git Bash 下执行：./build.sh
 # 产物：Aria2-<arch>-<version>.spk（可在套件中心「手动安装」）
 # 打包结构对齐 Synology 官方 pkgscripts：
-#   package.tgz  —— gzip tar，成员为裸文件名（无 ./ 前缀）
-#   scripts/conf —— gzip tar 流，成员为 ./<name>
+#   package.tgz / scripts / conf —— gzip tar，成员均为裸文件名（无 ./ 前缀）
 #   WIZARD_UIFILES —— gzip tar 流，成员带 WIZARD_UIFILES/ 目录前缀
 #   外层为非压缩 tar
 set -e
@@ -25,9 +24,11 @@ trap 'rm -rf "$STAGE"' EXIT
 ls -A package > "$STAGE/package.list"
 tar -C package -czf "$STAGE/package.tgz" -T "$STAGE/package.list"
 
-# scripts / conf：gzip tar 流
-tar -C scripts -czf "$STAGE/scripts" .
-tar -C conf    -czf "$STAGE/conf" .
+# scripts / conf：gzip tar 流，成员名必须为裸文件名（与官方 pkg_util 的
+# `tar -C scripts $(ls scripts)` 一致），带 ./ 前缀可能导致 DSM7
+# 找不到 privilege 文件而回退为 root 权限判定
+tar -C scripts -czf "$STAGE/scripts" common preinst postinst postupgrade preuninst postuninst start-stop-status
+tar -C conf    -czf "$STAGE/conf" privilege resource
 
 # WIZARD_UIFILES：成员保留 WIZARD_UIFILES/ 目录前缀
 mkdir -p "$STAGE/wizroot/WIZARD_UIFILES"

@@ -1,5 +1,7 @@
 {
   "defaults": {
     "run-as": "package"
-  }
+  },
+  "username": "sc-Aria2",
+  "groupname": "sc-Aria2"
 }
