@@ -45,4 +45,25 @@ tar -cf "$OUT" -C "$STAGE" \
     INFO PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG \
     package.tgz scripts conf WIZARD_UIFILES
 
+# ===== 打包后自检：产物内 privilege 必须是非 root 模型，否则直接失败 =====
+CHECK_DIR="$(mktemp -d)"
+trap 'rm -rf "$STAGE" "$CHECK_DIR"' EXIT
+tar xf "$OUT" -C "$CHECK_DIR"
+PRIV="$(tar xzOf "$CHECK_DIR/conf" privilege 2>/dev/null || true)"
+echo "----------------------------------------"
+echo "产物内 conf/privilege 实际内容："
+echo "$PRIV"
+echo "----------------------------------------"
+if ! echo "$PRIV" | grep -q '"run-as"[[:space:]]*:[[:space:]]*"package"'; then
+    echo "错误：产物中的 privilege 不是 run-as=package，请确认已 git pull 到最新代码！" >&2
+    rm -f "$OUT"
+    exit 1
+fi
+if tar tzf "$CHECK_DIR/conf" | grep -q '^\./'; then
+    echo "错误：conf 成员名带 ./ 前缀，不符合 DSM7 要求" >&2
+    rm -f "$OUT"
+    exit 1
+fi
+echo "自检通过（run-as=package，成员名合规）"
+
 echo "已生成：$OUT"
