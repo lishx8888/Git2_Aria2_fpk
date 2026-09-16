@@ -2,6 +2,7 @@
 scripts/* text eol=lf
 package/ui/index.cgi text eol=lf
 package/ui/config text eol=lf
+package/ui/Main.js text eol=lf
 WIZARD_UIFILES/* text eol=lf
 package/template/* text eol=lf
 INFO text eol=lf

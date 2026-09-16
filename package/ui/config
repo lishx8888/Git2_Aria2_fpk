@@ -1,12 +1,20 @@
 {
-  ".url": {
-    "Aria2G.Application": {
-      "type": "url",
-      "title": "Aria2G",
-      "desc": "Aria2G 下载中心",
-      "icon": "images/icon_{0}.png",
-      "url": "/webman/3rdparty/Aria2G/index.cgi/",
-      "allUsers": true
+    "Main.js": {
+        "SYNO.SDS.Aria2G.Instance": {
+            "type": "app",
+            "version": "1.0",
+            "desc": "Aria2G 下载中心",
+            "icon": "images/icon_{0}.png",
+            "title": "Aria2G",
+            "allowMultiInstance": false,
+            "appWindow": "SYNO.SDS.Aria2G.Main",
+            "depend": []
+        },
+        "SYNO.SDS.Aria2G.Main": {
+            "type": "lib",
+            "title": "Aria2G",
+            "icon": "images/icon_{0}.png",
+            "depend": []
+        }
     }
-  }
 }
