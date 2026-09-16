@@ -95,6 +95,8 @@ chmod +x build.sh
 # 产物：Aria2-x86_64-1.0.1-001.spk
 ```
 
+打包结构（对齐 spksrc 框架）：外层为非压缩 tar，`scripts/`、`conf/`、`WIZARD_UIFILES/` 以普通目录形态放入；`INFO` 中的 `support_conf_folder="yes"` 为必需字段——缺少它 DSM 不解析 `conf/privilege`，套件会被判定为 root 运行而拒绝安装。`build.sh` 打包时会自动追加 `extractsize` 与 `checksum`（package.tgz 的 md5）字段并做产物自检。
+
 SPK 为未签名包，安装方式：
 
 1. DSM → 套件中心 → 右上角设置 → 「套件来源」信任等级设为「任何发行者」（或安装时勾选仍要安装）

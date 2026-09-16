@@ -1,10 +1,13 @@
 #!/bin/bash
 # 在 Linux / WSL / macOS / Git Bash 下执行：./build.sh
 # 产物：Aria2-<arch>-<version>.spk（可在套件中心「手动安装」）
-# 打包结构对齐 Synology 官方 pkgscripts：
-#   package.tgz / scripts / conf —— gzip tar，成员均为裸文件名（无 ./ 前缀）
-#   WIZARD_UIFILES —— gzip tar 流，成员带 WIZARD_UIFILES/ 目录前缀
-#   外层为非压缩 tar
+# 打包结构对齐 spksrc 框架（SynoCommunity 生产环境验证过的形态）：
+#   外层为非压缩 tar，成员为普通文件与目录：
+#     conf/ INFO PACKAGE_ICON*.PNG package.tgz scripts/ WIZARD_UIFILES/
+#   package.tgz 为 gzip tar（payload），成员裸文件名
+#   scripts / conf / WIZARD_UIFILES 为普通目录
+#   INFO 必须含 support_conf_folder="yes"，否则 DSM 不解析 conf/privilege，
+#   会将套件判定为 root 运行而拒绝安装
 set -e
 cd "$(dirname "$0")"
 
@@ -20,50 +23,54 @@ OUT="$ROOT/Aria2-${ARCH}-${VER}.spk"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-# package.tgz：成员名不带 ./ 前缀（与官方 ls | tar -T - 行为一致）
+# package.tgz：gzip tar，成员名不带 ./ 前缀
 ls -A package > "$STAGE/package.list"
 tar -C package -czf "$STAGE/package.tgz" -T "$STAGE/package.list"
 
-# scripts / conf：gzip tar 流，成员名必须为裸文件名（与官方 pkg_util 的
-# `tar -C scripts $(ls scripts)` 一致），带 ./ 前缀可能导致 DSM7
-# 找不到 privilege 文件而回退为 root 权限判定
-tar -C scripts -czf "$STAGE/scripts" common preinst postinst postupgrade preuninst postuninst start-stop-status
-tar -C conf    -czf "$STAGE/conf" privilege resource
+# scripts / conf / WIZARD_UIFILES：以普通目录形态放入 SPK（与 spksrc 一致）
+mkdir -p "$STAGE/scripts" "$STAGE/conf" "$STAGE/WIZARD_UIFILES"
+cp scripts/common scripts/preinst scripts/postinst scripts/postupgrade \
+   scripts/preuninst scripts/postuninst scripts/start-stop-status "$STAGE/scripts/"
+cp conf/privilege conf/resource "$STAGE/conf/"
+cp WIZARD_UIFILES/install_uifile "$STAGE/WIZARD_UIFILES/"
+chmod 755 "$STAGE/scripts/"*
+chmod 644 "$STAGE/conf/"* "$STAGE/WIZARD_UIFILES/"*
 
-# WIZARD_UIFILES：成员保留 WIZARD_UIFILES/ 目录前缀
-mkdir -p "$STAGE/wizroot/WIZARD_UIFILES"
-cp WIZARD_UIFILES/install_uifile "$STAGE/wizroot/WIZARD_UIFILES/"
-tar -C "$STAGE/wizroot" -czf "$STAGE/WIZARD_UIFILES" WIZARD_UIFILES
-
-# 图标与 INFO（INFO 追加 extractsize，单位 KB）
+# 图标与 INFO（INFO 追加 extractsize 单位 KB，checksum 为 package.tgz 的 md5）
 cp PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG "$STAGE/"
 cp INFO "$STAGE/INFO"
 echo "extractsize=$(du -sk package | awk '{print $1}')" >> "$STAGE/INFO"
+echo "checksum=$(md5sum "$STAGE/package.tgz" | awk '{print $1}')" >> "$STAGE/INFO"
 
+# 外层：非压缩 tar，成员名裸名，统一属主 root（与 spksrc `tar cpf $@ --owner=root --group=root` 一致）
 rm -f "$OUT"
-tar -cf "$OUT" -C "$STAGE" \
-    INFO PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG \
-    package.tgz scripts conf WIZARD_UIFILES
+tar --owner=root --group=root -cf "$OUT" -C "$STAGE" \
+    conf INFO PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG \
+    package.tgz scripts WIZARD_UIFILES
 
-# ===== 打包后自检：产物内 privilege 必须是非 root 模型，否则直接失败 =====
+# ===== 打包后自检：任一关键项不合规则删除产物退出 =====
 CHECK_DIR="$(mktemp -d)"
 trap 'rm -rf "$STAGE" "$CHECK_DIR"' EXIT
 tar xf "$OUT" -C "$CHECK_DIR"
-PRIV="$(tar xzOf "$CHECK_DIR/conf" privilege 2>/dev/null || true)"
+PRIV="$CHECK_DIR/conf/privilege"
 echo "----------------------------------------"
 echo "产物内 conf/privilege 实际内容："
-echo "$PRIV"
+cat "$PRIV"
 echo "----------------------------------------"
-if ! echo "$PRIV" | grep -q '"run-as"[[:space:]]*:[[:space:]]*"package"'; then
-    echo "错误：产物中的 privilege 不是 run-as=package，请确认已 git pull 到最新代码！" >&2
+FAIL=0
+grep -q '"run-as"[[:space:]]*:[[:space:]]*"package"' "$PRIV" \
+    || { echo "错误：privilege 不是 run-as=package" >&2; FAIL=1; }
+grep -q '^support_conf_folder="yes"$' "$CHECK_DIR/INFO" \
+    || { echo "错误：INFO 缺少 support_conf_folder=\"yes\"（DSM 将忽略 conf/privilege 并判定为 root 套件）" >&2; FAIL=1; }
+grep -q '^checksum=' "$CHECK_DIR/INFO" \
+    || { echo "错误：INFO 缺少 checksum" >&2; FAIL=1; }
+if [ "$(tar tzf "$CHECK_DIR/package.tgz" | grep -c '^\./')" -ne 0 ]; then
+    echo "错误：package.tgz 成员名带 ./ 前缀" >&2
+    FAIL=1
+fi
+if [ "$FAIL" -ne 0 ]; then
     rm -f "$OUT"
     exit 1
 fi
-if tar tzf "$CHECK_DIR/conf" | grep -q '^\./'; then
-    echo "错误：conf 成员名带 ./ 前缀，不符合 DSM7 要求" >&2
-    rm -f "$OUT"
-    exit 1
-fi
-echo "自检通过（run-as=package，成员名合规）"
-
+echo "自检通过（run-as=package、support_conf_folder、checksum、成员名合规）"
 echo "已生成：$OUT"
