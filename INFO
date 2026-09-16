@@ -1,5 +1,5 @@
 package="Aria2G"
-version="1.0.2-001"
+version="1.0.2-002"
 displayname="Aria2G"
 arch="x86_64"
 description="Aria2G 面板（基于 Aria2c-1.37.0）：支持 HTTP/FTP、BT/磁力下载，内置 BT-Tracker 与 DHT；集成 GitHub 加速下载，支持自定义加速前缀与下载目录，RPC 由服务端代理，无需配置端口和密钥。开源致谢：aria2 (https://github.com/aria2/aria2)、aria2 静态编译 (https://github.com/abcfy2/aria2-static-build)、CF-GitHub-Proxy (https://github.com/hubporg/CF-GitHub-Proxy)。"
