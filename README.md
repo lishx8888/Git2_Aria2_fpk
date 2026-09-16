@@ -174,6 +174,7 @@ RPC 默认端口 6800、BT/DHT 端口 6881-6999 可能被其他下载工具/Dock
 本应用基于以下开源项目：
 
 - [aria2](https://github.com/aria2/aria2) — 下载内核 aria2c（HTTP/FTP/BT/磁力，支持 RPC 与 DHT）
+- [aria2-static-build](https://github.com/abcfy2/aria2-static-build) — aria2c 的全静态编译版本（musl + OpenSSL 3，无 glibc 版本依赖，`package/server/aria2c` 即取自该项目的 x86_64 构建）
 - [CF-GitHub-Proxy](https://github.com/hubporg/CF-GitHub-Proxy) — GitHub 加速服务，面板默认/自定义加速前缀即基于该类公共代理实现
 
 感谢上述项目作者与社区的贡献。
