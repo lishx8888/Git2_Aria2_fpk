@@ -64,6 +64,8 @@ grep -q '^support_conf_folder="yes"$' "$CHECK_DIR/INFO" \
     || { echo "错误：INFO 缺少 support_conf_folder=\"yes\"（DSM 将忽略 conf/privilege 并判定为 root 套件）" >&2; FAIL=1; }
 grep -q '^checksum=' "$CHECK_DIR/INFO" \
     || { echo "错误：INFO 缺少 checksum" >&2; FAIL=1; }
+grep -q '"subitems"' "$CHECK_DIR/WIZARD_UIFILES/install_uifile" \
+    || { echo "错误：install_uifile 缺少 subitems 结构（向导会渲染为空白页）" >&2; FAIL=1; }
 if [ "$(tar tzf "$CHECK_DIR/package.tgz" | grep -c '^\./')" -ne 0 ]; then
     echo "错误：package.tgz 成员名带 ./ 前缀" >&2
     FAIL=1
@@ -72,5 +74,5 @@ if [ "$FAIL" -ne 0 ]; then
     rm -f "$OUT"
     exit 1
 fi
-echo "自检通过（run-as=package、support_conf_folder、checksum、成员名合规）"
+echo "自检通过（run-as=package、support_conf_folder、checksum、向导结构、成员名合规）"
 echo "已生成：$OUT"

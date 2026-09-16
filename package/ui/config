@@ -7,6 +7,8 @@
       "icon": "images/icon_{0}.png",
       "url": "3rdparty/Aria2/index.cgi/",
       "allUsers": true,
+      "grantPrivilege": "all",
+      "advanceGrantPrivilege": true,
       "allowMultiInstance": false
     }
   }

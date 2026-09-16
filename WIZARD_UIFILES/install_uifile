@@ -1,44 +1,58 @@
 [
-  {
-    "step_title": "下载共享文件夹",
-    "items": [
-      {
-        "type": "textfield",
-        "desc": "下载文件保存到的共享文件夹名称（仅名称，如 downloads；不存在会自动创建，已存在则授权套件读写）。安装后也可在面板设置中改为其他已授权目录。",
-        "key": "wizard_share_name",
-        "defaultValue": "downloads",
-        "validator": {
-          "allowBlank": false,
-          "regex": {
-            "expr": "^[A-Za-z0-9_\\-\\. ]{1,32}$",
-            "invalidText": "请输入 1-32 位共享文件夹名称（字母、数字、空格、_ - .）"
-          }
-        }
-      }
-    ]
-  },
-  {
-    "step_title": "Aria2 RPC 设置",
-    "items": [
-      {
-        "type": "password",
-        "desc": "RPC 访问密钥（仅服务端使用，不下发浏览器）。",
-        "key": "rpc_secret",
-        "defaultValue": "aria2rpc_secret"
-      },
-      {
-        "type": "textfield",
-        "desc": "RPC 监听端口（默认 6800，请确认端口未被占用）。",
-        "key": "rpc_port",
-        "defaultValue": "6800",
-        "validator": {
-          "allowBlank": false,
-          "regex": {
-            "expr": "^[0-9]{1,5}$",
-            "invalidText": "请输入 1-65535 之间的端口号"
-          }
-        }
-      }
-    ]
-  }
+    {
+        "step_title": "下载共享文件夹",
+        "invalid_next_disabled": true,
+        "items": [
+            {
+                "type": "textfield",
+                "subitems": [
+                    {
+                        "key": "wizard_share_name",
+                        "desc": "下载文件保存到的共享文件夹名称（仅名称，如 downloads；不存在会自动创建，已存在则授权套件读写）。安装后也可在面板设置中改为其他已授权目录。",
+                        "defaultValue": "downloads",
+                        "validator": {
+                            "allowBlank": false,
+                            "regex": {
+                                "expr": "/^[A-Za-z0-9][A-Za-z0-9_\\-\\.]{0,31}$/",
+                                "errorText": "请输入 1-32 位共享文件夹名称（字母或数字开头，可含数字、下划线、连字符、点）"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "step_title": "Aria2 RPC 设置",
+        "invalid_next_disabled": true,
+        "items": [
+            {
+                "type": "password",
+                "subitems": [
+                    {
+                        "key": "rpc_secret",
+                        "desc": "RPC 访问密钥（仅服务端使用，不下发浏览器）。",
+                        "defaultValue": "aria2rpc_secret"
+                    }
+                ]
+            },
+            {
+                "type": "textfield",
+                "subitems": [
+                    {
+                        "key": "rpc_port",
+                        "desc": "RPC 监听端口（默认 6800，请确认端口未被占用）。",
+                        "defaultValue": "6800",
+                        "validator": {
+                            "allowBlank": false,
+                            "regex": {
+                                "expr": "/^[0-9]{1,5}$/",
+                                "errorText": "请输入 1-65535 之间的端口号"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
 ]
