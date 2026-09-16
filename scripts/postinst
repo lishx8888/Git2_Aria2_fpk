@@ -1,6 +1,6 @@
 #!/bin/bash
 # 文件复制完成后执行：创建数据目录、生成配置、初始化数据文件
-# 注意：生命周期脚本以 root 运行；守护进程本身由框架降权为 sc-Aria2
+# 注意：生命周期脚本以 root 运行；守护进程本身由框架降权为 sc-Aria2G
 
 . "$(dirname "$0")/common"
 set -e
@@ -18,13 +18,13 @@ if [ ! -x "$ARIA2C_BIN" ]; then
 fi
 chmod 755 "$ARIA2C_BIN"
 
-# 下载共享目录（data-share worker 已建共享并授权 sc-Aria2 读写；此处兜底创建）
+# 下载共享目录（data-share worker 已建共享并授权 sc-Aria2G 读写；此处兜底创建）
 if [ ! -d "$DOWNLOAD_DIR" ]; then
     mkdir -p "$DOWNLOAD_DIR"
     chmod 777 "$DOWNLOAD_DIR"
 fi
 
-# 运行数据目录：属主 sc-Aria2，755 允许 http(CGI) 进入读取
+# 运行数据目录：属主 sc-Aria2G，755 允许 http(CGI) 进入读取
 mkdir -p "$DATA_DIR"
 chmod 755 "$DATA_DIR"
 
@@ -32,7 +32,7 @@ chmod 755 "$DATA_DIR"
 write_paths_conf
 render_conf "$RPC_SECRET" "$RPC_PORT"
 
-# 初始化运行期文件（会话/DHT/日志由 sc-Aria2 写，ui.conf 需 http 改写）
+# 初始化运行期文件（会话/DHT/日志由 sc-Aria2G 写，ui.conf 需 http 改写）
 for file in aria2.session dht.dat dht6.dat aria2.log service.log; do
     [ ! -f "$DATA_DIR/$file" ] && touch "$DATA_DIR/$file"
 done

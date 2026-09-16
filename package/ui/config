@@ -1,11 +1,11 @@
 {
   ".url": {
-    "Aria2.Application": {
+    "Aria2G.Application": {
       "type": "url",
-      "title": "Aria2",
-      "desc": "Aria2 下载中心",
+      "title": "Aria2G",
+      "desc": "Aria2G 下载中心",
       "icon": "images/icon_{0}.png",
-      "url": "/webman/3rdparty/Aria2/index.cgi/",
+      "url": "/webman/3rdparty/Aria2G/index.cgi/",
       "allUsers": true,
       "grantPrivilege": "all",
       "advanceGrantPrivilege": true,

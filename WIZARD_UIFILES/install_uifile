@@ -23,7 +23,7 @@
         ]
     },
     {
-        "step_title": "Aria2 RPC 设置",
+        "step_title": "Aria2G RPC 设置",
         "invalid_next_disabled": true,
         "items": [
             {

@@ -1,6 +1,6 @@
 #!/bin/bash
 # 在 Linux / WSL / macOS / Git Bash 下执行：./build.sh
-# 产物：Aria2-<arch>-<version>.spk（可在套件中心「手动安装」）
+# 产物：Aria2G-<arch>-<version>.spk（可在套件中心「手动安装」）
 # 打包结构对齐 spksrc 框架（SynoCommunity 生产环境验证过的形态）：
 #   外层为非压缩 tar，成员为普通文件与目录：
 #     conf/ INFO PACKAGE_ICON*.PNG package.tgz scripts/ WIZARD_UIFILES/
@@ -18,7 +18,7 @@ chmod +x scripts/* package/ui/index.cgi package/server/aria2c
 VER=$(sed -n 's/^version="\(.*\)"$/\1/p' INFO)
 ARCH=$(sed -n 's/^arch="\(.*\)"$/\1/p' INFO)
 ROOT="$(pwd)"
-OUT="$ROOT/Aria2-${ARCH}-${VER}.spk"
+OUT="$ROOT/Aria2G-${ARCH}-${VER}.spk"
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT

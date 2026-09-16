@@ -2,13 +2,13 @@
 # 群晖 SPK 生命周期脚本公共函数与路径定义
 # 被 preinst/postinst/postupgrade/preuninst/postuninst/start-stop-status source
 
-PKG="Aria2"
-# DSM7 安全模型：守护进程以套件系统用户 sc-Aria2 运行（由框架自动创建）
+PKG="Aria2G"
+# DSM7 安全模型：守护进程以套件系统用户 sc-Aria2G 运行（由框架自动创建）
 PKG_USER="sc-$PKG"
 
 : "${SYNOPKG_PKGDEST:=/var/packages/$PKG/target}"
 
-# 部分调用场景可能没有 SYNOPKG_PKGDEST_VOL，从 target 软链接 (/volumeX/@appstore/Aria2) 反推
+# 部分调用场景可能没有 SYNOPKG_PKGDEST_VOL，从 target 软链接 (/volumeX/@appstore/Aria2G) 反推
 if [ -z "${SYNOPKG_PKGDEST_VOL:-}" ]; then
     LINK_TARGET="$(readlink "$SYNOPKG_PKGDEST" 2>/dev/null)"
     case "$LINK_TARGET" in
@@ -17,7 +17,7 @@ if [ -z "${SYNOPKG_PKGDEST_VOL:-}" ]; then
     : "${SYNOPKG_PKGDEST_VOL:=/volume1}"
 fi
 
-# 运行数据目录优先使用框架提供的 SYNOPKG_PKGVAR（/volumeX/@appdata/Aria2）
+# 运行数据目录优先使用框架提供的 SYNOPKG_PKGVAR（/volumeX/@appdata/Aria2G）
 DATA_DIR="${SYNOPKG_PKGVAR:-$SYNOPKG_PKGDEST_VOL/@appdata/$PKG}"
 # 默认下载目录在 resolve_share_path 后确定
 DOWNLOAD_DIR=""

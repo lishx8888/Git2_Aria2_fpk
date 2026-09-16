@@ -4,7 +4,7 @@
       {
         "name": "{{wizard_share_name}}",
         "permission": {
-          "rw": ["sc-Aria2"]
+          "rw": ["sc-Aria2G"]
         }
       }
     ]

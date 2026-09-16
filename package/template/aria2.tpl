@@ -164,5 +164,5 @@ log=${DATA_DIR}/aria2.log
 file-allocation=falloc
 
 # 文件创建权限掩码，000=所有用户可读写
-# 套件以系统用户 sc-Aria2 运行，配合共享文件夹 ACL，000 可保证 DSM 用户正常访问下载文件
+# 套件以系统用户 sc-Aria2G 运行，配合共享文件夹 ACL，000 可保证 DSM 用户正常访问下载文件
 umask=000
