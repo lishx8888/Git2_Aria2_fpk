@@ -149,6 +149,7 @@ th:not(:first-child),td:not(:first-child){text-align:center}
   </div>
   <div class="row" style="margin-bottom:12px">
     <button class="btn ghost" id="btnQuickAdd">添加</button>
+    <button class="btn ghost" id="btnClearUrl">清空</button>
     <button class="btn ghost" id="btnClearCompleted">清空已完成任务</button>
   </div>
   <div id="taskMsg" style="flex:none"></div>
@@ -401,24 +402,44 @@ function stripAcceleratedPrefix(u) {
   return u;
 }
 
-// 复制文本（HTTP 环境降级到 execCommand）
+// 复制入口：优先现代 Clipboard API（HTTPS），失败降级 execCommand，全程静默无提示
 function copyText(text) {
   if (navigator.clipboard && window.isSecureContext) {
-    return navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    return;
   }
-  return new Promise((resolve, reject) => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
-    } catch (e) {
-      reject(e);
+  fallbackCopy(text);
+}
+
+// 降级复制：隐藏输入框 + execCommand（需在用户点击手势内同步执行）
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  // 固定在视口内且不显示，font-size 16px 避免 iOS 聚焦自动缩放
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px';
+  document.body.appendChild(ta);
+  let ok = false;
+  try {
+    if (/ipad|iphone|ipod/i.test(navigator.userAgent)) {
+      // iOS：readonly 元素 select() 可能无效，用 Range 选中内容
+      const range = document.createRange();
+      range.selectNodeContents(ta);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      ta.setSelectionRange(0, text.length);
+    } else {
+      ta.focus();
+      ta.select();
     }
-    document.body.removeChild(ta);
-  });
+    ok = document.execCommand('copy');
+  } catch (e) {}
+  document.body.removeChild(ta);
+  if (!ok && navigator.clipboard) {
+    // execCommand 失败时最后再尝试一次 Clipboard API
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
 }
 
 function showResult(text, type) {
@@ -467,13 +488,17 @@ $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) close
 $('btnQuickAdd').addEventListener('click', () => {
   addUrls([$('quickUrl').value]).then(() => { $('quickUrl').value = ''; });
 });
+$('btnClearUrl').addEventListener('click', () => {
+  $('quickUrl').value = '';
+  $('quickUrl').focus();
+});
 $('btnClearCompleted').addEventListener('click', clearCompletedTasks);
 
 $('taskBody').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-act]');
   if (!btn) return;
   if (btn.dataset.act === 'copy') {
-    copyText(btn.dataset.url).catch(() => {});
+    copyText(btn.dataset.url);
     return;
   }
   taskAction(btn.dataset.act, btn.dataset.gid);
