@@ -270,7 +270,6 @@ async function saveConfig() {
   try {
     await apiGet('config/save', { prefix: prefix, dir: dir });
   } catch (e) {
-    showResult('保存失败：' + e.message, 'err');
     return;
   }
   config.prefix = prefix;
@@ -356,7 +355,7 @@ async function taskAction(act, gid) {
   try {
     await apiGet(ep, { gid });
   } catch (e) {
-    showTaskMsg('操作失败：' + e.message, 'err');
+    // 操作失败静默
   }
   setTimeout(refresh, 400);
 }
@@ -381,7 +380,7 @@ async function addUrls(lines) {
     const target = transformUrl(u);
     if (target) urls.push(target);
   }
-  if (!urls.length) { showResult('没有可添加的有效链接（支持 http/https 直链与 magnet 磁力链接）。', 'err'); return; }
+  if (!urls.length) { return; }
 
   for (const u of urls) {
     const params = { url: u };
@@ -389,7 +388,7 @@ async function addUrls(lines) {
     try {
       await apiGet('add', params);
     } catch (e) {
-      showResult('添加失败：' + u + '（' + e.message + '）', 'err');
+      // 添加失败静默
     }
   }
   setTimeout(refresh, 500);
@@ -459,14 +458,13 @@ async function clearCompletedTasks() {
       t.status === 'complete' || t.status === 'error' || t.status === 'removed'
     ).map(t => t.gid);
     if (!gids.length) {
-      showTaskMsg('没有可清空的已完成任务', 'info');
       return;
     }
     for (const gid of gids) {
       try { await apiGet('remove', { gid }); } catch (e) {}
     }
   } catch (e) {
-    showTaskMsg('清空失败：' + e.message, 'err');
+    // 清空失败静默
   }
   setTimeout(refresh, 400);
 }
