@@ -313,7 +313,9 @@ function renderStat(stat) {
 
 function renderTasks(active, waiting, stopped) {
   const body = $('taskBody');
-  const all = (active || []).concat(waiting || [], stopped || []).filter(t => t && t.status !== 'removed');
+  // stopped（含完成/错误）反序，让最新完成的排在最上面
+  const stoppedSorted = (stopped || []).slice().reverse();
+  const all = (active || []).concat(waiting || [], stoppedSorted).filter(t => t && t.status !== 'removed');
 
   if (!all.length) {
     body.innerHTML = '';
