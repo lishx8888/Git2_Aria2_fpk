@@ -34,11 +34,12 @@ max-resume-failure-tries=0
 # 获取服务器文件时间，默认:false
 remote-time=true
 
-# 断点续传文件保存位置
-input-file=/var/apps/Aria2/shares/data/aria2.session
-save-session=/var/apps/Aria2/shares/data/aria2.session
-# 定时保存会话，0表示退出时保存 (秒)
-save-session-interval=1
+# 断点续传文件保存位置（由 install_callback/config_callback 渲染为框架数据目录，随套件升级保留）
+input-file=${DATA_DIR}/aria2.session
+save-session=${DATA_DIR}/aria2.session
+# 定时保存会话文件，0表示退出时保存 (秒)
+# 数值越小记录越安全，但会频繁重写整个会话文件；30 秒为兼顾安全与磁盘 I/O 的折中
+save-session-interval=30
 auto-save-interval=20
 
 # 强制保存，即使任务已完成也保存信息到会话文件, 默认:false
@@ -112,11 +113,11 @@ rpc-allow-origin-all=true
 enable-dht=true
 enable-dht6=true
 
-# IPv4 DHT 文件路径，默认：/var/apps/Aria2/shares/data/dht.dat
-dht-file-path=/var/apps/Aria2/shares/data/dht.dat
+# IPv4 DHT 文件路径
+dht-file-path=${DATA_DIR}/dht.dat
 
-# IPv6 DHT 文件路径，默认：/var/apps/Aria2/shares/data/dht6.dat
-dht-file-path6=/var/apps/Aria2/shares/data/dht6.dat
+# IPv6 DHT 文件路径
+dht-file-path6=${DATA_DIR}/dht6.dat
 
 # DHT 监听端口
 dht-listen-port=6881-6999
@@ -151,7 +152,7 @@ bt-save-metadata=true
 log-level=notice
 
 # 日志文件路径 (留空则输出到 stderr)
-log=/var/apps/Aria2/shares/data/aria2.log
+log=${DATA_DIR}/aria2.log
 
 # 禁用 IPv6 (如果你的网络 IPv6 有问题导致连接慢，可以取消下面这行的注释)
 # disable-ipv6=true

@@ -112,11 +112,11 @@ emit_error() {
     exit 0
 }
 
-# 统一的 RPC 输出：$1=method，$2=token 之后的 params 片段（可为空）
-rpc_emit() {
+# 构造 JSON-RPC 请求体：$1=method，$2=token 之后的 params 片段（可为空）
+# 调用前需先执行 read_conf 以取得 RPC_SECRET
+rpc_payload() {
     local method="$1"
     local rest="$2"
-    read_conf
     local token
     if [ -n "$RPC_SECRET" ]; then
         token="\"token:$(json_escape "$RPC_SECRET")\""
@@ -124,15 +124,20 @@ rpc_emit() {
         token="\"\""
     fi
 
-    local payload
     if [ -n "$rest" ]; then
-        payload="{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"$method\",\"params\":[$token,$rest]}"
+        printf '{"jsonrpc":"2.0","id":"1","method":"%s","params":[%s,%s]}' "$method" "$token" "$rest"
     else
-        payload="{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"$method\",\"params\":[$token]}"
+        printf '{"jsonrpc":"2.0","id":"1","method":"%s","params":[%s]}' "$method" "$token"
     fi
+}
 
+# 统一的 RPC 输出：$1=method，$2=token 之后的 params 片段（可为空）
+rpc_emit() {
+    local method="$1"
+    local rest="$2"
+    read_conf
     emit_json_header
-    rpc_call "$payload"
+    rpc_call "$(rpc_payload "$method" "$rest")"
     exit 0
 }
 
@@ -209,7 +214,13 @@ case "$REL_PATH" in
     /api/active)       rpc_emit aria2.tellActive "[$KEYS_JSON]" ;;
     /api/waiting)      rpc_emit aria2.tellWaiting "0,1000,[$KEYS_JSON]" ;;
     /api/stopped)      rpc_emit aria2.tellStopped "0,1000,[$KEYS_JSON]" ;;
-    /api/purge)        rpc_emit aria2.purgeDownloadResult "" ;;
+    /api/purge)
+        # 一次性清除全部已停止（完成/错误/已移除）的任务结果，并立即持久化会话
+        read_conf
+        emit_json_header
+        rpc_call "$(rpc_payload aria2.purgeDownloadResult "")"
+        rpc_call "$(rpc_payload aria2.saveSession "")" >/dev/null 2>&1
+        exit 0 ;;
     /api/add)
         URL="$(get_param url)"
         if [ -z "$URL" ]; then emit_error "缺少 url 参数"; fi
@@ -230,11 +241,23 @@ case "$REL_PATH" in
     /api/remove)
         GID="$(get_param gid)"
         if [ -z "$GID" ]; then emit_error "缺少 gid 参数"; fi
-        rpc_emit aria2.removeDownloadResult "\"$(json_escape "$GID")\"" ;;
+        read_conf
+        emit_json_header
+        rpc_call "$(rpc_payload aria2.removeDownloadResult "\"$(json_escape "$GID")\"")"
+        # 立即持久化会话：否则在保存间隔内重启，已删除的记录会随会话文件"复活"
+        rpc_call "$(rpc_payload aria2.saveSession "")" >/dev/null 2>&1
+        exit 0 ;;
     /api/forceRemove)
         GID="$(get_param gid)"
         if [ -z "$GID" ]; then emit_error "缺少 gid 参数"; fi
-        rpc_emit aria2.forceRemove "\"$(json_escape "$GID")\"" ;;
+        read_conf
+        emit_json_header
+        rpc_call "$(rpc_payload aria2.forceRemove "\"$(json_escape "$GID")\"")"
+        # force-save=true 会把 removed 状态的任务也写进会话文件，重启后面板会再次出现；
+        # 故停止任务后立即清除任务结果并持久化会话，实现"删除即彻底删除"。
+        rpc_call "$(rpc_payload aria2.removeDownloadResult "\"$(json_escape "$GID")\"")" >/dev/null 2>&1
+        rpc_call "$(rpc_payload aria2.saveSession "")" >/dev/null 2>&1
+        exit 0 ;;
     *)
         serve_static "$REL_PATH" ;;
 esac

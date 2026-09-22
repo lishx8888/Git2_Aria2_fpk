@@ -1,0 +1,19 @@
+# 统一强制 LF 行尾：CGI / shell 脚本若以 CRLF 打包，shebang 会变成
+# "#!/bin/bash\r"，内核找不到该解释器，导致执行失败（面板 500）。
+# 注：仓库索引中本就存 LF，但 Windows 检出时会被 core.autocrlf 改为 CRLF，
+# 打包时若直接使用工作区文件就会把 CRLF 带进安装包。
+* text=auto eol=lf
+
+cmd/* text eol=lf
+app/ui/index.cgi text eol=lf
+app/ui/config text eol=lf
+app/template/* text eol=lf
+wizard/* text eol=lf
+config/* text eol=lf
+manifest text eol=lf
+README.md text eol=lf
+
+# 二进制资源不做行尾转换
+*.png binary
+*.PNG binary
+*.ico binary

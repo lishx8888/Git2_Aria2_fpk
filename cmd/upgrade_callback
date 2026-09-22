@@ -1,5 +1,22 @@
 #!/bin/bash
 
 ### This script is called after the user upgrades the application.
+### 升级时重建配置：模板中的记录保持相关设置（force-save、会话文件路径、保存间隔）
+### 只有重新渲染才会生效；旧版本直接用升级包覆盖时，data 目录里的 aria2.conf 仍是旧内容。
+### 复用 config_callback 可保证 RPC 端口/密钥从现有配置继承，不会被重置为默认值。
 
+CMD_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+
+if [ -n "$CMD_DIR" ] && [ -f "$CMD_DIR/config_callback" ]; then
+    bash "$CMD_DIR/config_callback"
+    exit $?
+fi
+
+# 兜底：按框架变量定位
+if [ -n "${TRIM_APPDEST:-}" ] && [ -f "${TRIM_APPDEST}/cmd/config_callback" ]; then
+    bash "${TRIM_APPDEST}/cmd/config_callback"
+    exit $?
+fi
+
+echo "警告：未找到 config_callback，跳过配置重建，现有 aria2.conf 保持不变" >&2
 exit 0

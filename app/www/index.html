@@ -456,15 +456,12 @@ function showTaskMsg(text, type) {
 async function clearCompletedTasks() {
   try {
     const stopped = await apiGet('stopped');
-    const gids = (stopped.result || []).filter(t =>
+    const hasStopped = (stopped.result || []).some(t =>
       t.status === 'complete' || t.status === 'error' || t.status === 'removed'
-    ).map(t => t.gid);
-    if (!gids.length) {
-      return;
-    }
-    for (const gid of gids) {
-      try { await apiGet('remove', { gid }); } catch (e) {}
-    }
+    );
+    if (!hasStopped) return;
+    // 一次性清除全部已停止任务，服务端会同步持久化会话文件
+    await apiGet('purge');
   } catch (e) {
     // 清空失败静默
   }

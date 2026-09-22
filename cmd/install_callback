@@ -51,6 +51,7 @@ mkdir -p "$DOWNLOAD_DIR"
 sed \
   -e "s|\${PRC_SECRET}|${rpc_secret:-aria2rpc_secret}|g" \
   -e "s|\${RPC_PORT}|${rpc_port:-6800}|g" \
+  -e "s|\${DATA_DIR}|$TARGET_DIR|g" \
   -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
   -e "s|\${SCRIPT_PATH}|$SCRIPT_FILE|g" \
   "$CONFIG_TEMPLATE" > "$CONFIG_FILE"

@@ -33,13 +33,40 @@ exit 0
 HOOK
 chmod +x "$SCRIPT_FILE"
 
-# 生成配置文件
+# 模板缺失时直接退出，避免写出空配置导致 aria2 无法启动
+if [ ! -f "$CONFIG_TEMPLATE" ]; then
+    echo "错误：模板文件不存在，跳过配置生成: $CONFIG_TEMPLATE" >&2
+    exit 0
+fi
+
+# 向导未提供端口/密钥时（升级路径会复用本脚本），从现有配置继承，避免重置用户设置
+if [ -f "$CONFIG_FILE" ]; then
+    [ -z "${rpc_secret:-}" ] && rpc_secret="$(sed -n 's/^[[:space:]]*rpc-secret[[:space:]]*=[[:space:]]*//p' "$CONFIG_FILE" 2>/dev/null | head -n 1 | tr -d '\r')"
+    [ -z "${rpc_port:-}" ] && rpc_port="$(sed -n 's/^[[:space:]]*rpc-listen-port[[:space:]]*=[[:space:]]*//p' "$CONFIG_FILE" 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+fi
+: "${rpc_secret:=aria2rpc_secret}"
+: "${rpc_port:=6800}"
+
+# 生成配置文件（先写临时文件，成功后再替换，避免中途失败留下残缺配置）
 mkdir -p "$DOWNLOAD_DIR"
-sed \
-  -e "s|\${PRC_SECRET}|${rpc_secret:-aria2rpc_secret}|g" \
-  -e "s|\${RPC_PORT}|${rpc_port:-6800}|g" \
+if sed \
+  -e "s|\${PRC_SECRET}|${rpc_secret}|g" \
+  -e "s|\${RPC_PORT}|${rpc_port}|g" \
+  -e "s|\${DATA_DIR}|$TARGET_DIR|g" \
   -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
   -e "s|\${SCRIPT_PATH}|$SCRIPT_FILE|g" \
-  "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+  "$CONFIG_TEMPLATE" > "${CONFIG_FILE}.tmp"; then
+    mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+else
+    rm -f "${CONFIG_FILE}.tmp"
+    echo "错误：生成配置文件失败" >&2
+    exit 1
+fi
+
+# 创建必需的空文件（升级/重装场景补建，已存在则保留原有下载记录）
+for file in aria2.session dht.dat dht6.dat; do
+  FILE_PATH="$TARGET_DIR/$file"
+  [ ! -f "$FILE_PATH" ] && touch "$FILE_PATH"
+done
 
 exit 0
