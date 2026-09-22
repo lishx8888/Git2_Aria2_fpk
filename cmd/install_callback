@@ -1,54 +1,19 @@
 #!/bin/bash
-CONFIG_TEMPLATE="${TRIM_APPDEST}/template/aria2.tpl"
-CONFIG_FILE="${TRIM_DATA_SHARE_PATHS%%:*}/data/aria2.conf"
-TARGET_DIR="${TRIM_DATA_SHARE_PATHS%%:*}/data"
-DOWNLOAD_DIR="${TRIM_DATA_SHARE_PATHS%%:*}/Download"
-SCRIPT_FILE="${TARGET_DIR}/on-download-complete"
+### 安装时复用 config_callback 生成配置与 hook 脚本，避免双份维护
+### config_callback 已含模板存在性检查、端口/密钥继承、.aria2 清理
 
-# 生成 on-download-complete 钩子脚本
-cat > "$SCRIPT_FILE" << 'HOOK'
-#!/bin/bash
-# aria2 on-download-complete / on-bt-download-complete 钩子
-# 参数: $1=gid, $2=文件数量, $3=第一个文件路径
-# 查询下载目录属主并 chown，使下载文件归属登录用户
+CMD_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 
-FILEPATH="$3"
-[ -z "$FILEPATH" ] && exit 0
-
-# 配置文件(ui.conf/aria2.conf)与本脚本位于同一数据目录，按自身位置定位，避免硬编码路径
-SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
-
-# 优先读面板配置的自定义下载目录(ui.conf)，其次 aria2.conf 的默认目录
-trim() { sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
-DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/ui.conf" 2>/dev/null | head -1 | trim)
-[ -z "$DOWNLOAD_DIR" ] && DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/aria2.conf" 2>/dev/null | head -1 | trim)
-
-# 用数字 uid:gid 精确匹配下载目录属主（保留组，如 td:Users）
-OWNER=$(stat -c %u:%g "$DOWNLOAD_DIR" 2>/dev/null)
-OWNER_UID=${OWNER%%:*}
-
-# 属主非 root 时 chown
-if [ -n "$OWNER_UID" ] && [ "$OWNER_UID" != "0" ]; then
-  chown -R "$OWNER" "$FILEPATH" 2>/dev/null
+if [ -n "$CMD_DIR" ] && [ -f "$CMD_DIR/config_callback" ]; then
+    bash "$CMD_DIR/config_callback"
+    exit $?
 fi
 
-exit 0
-HOOK
-chmod +x "$SCRIPT_FILE"
+# 兜底：按框架变量定位
+if [ -n "${TRIM_APPDEST:-}" ] && [ -f "${TRIM_APPDEST}/cmd/config_callback" ]; then
+    bash "${TRIM_APPDEST}/cmd/config_callback"
+    exit $?
+fi
 
-# 生成配置文件
-mkdir -p "$DOWNLOAD_DIR"
-sed \
-  -e "s|\${PRC_SECRET}|${rpc_secret:-aria2rpc_secret}|g" \
-  -e "s|\${RPC_PORT}|${rpc_port:-6800}|g" \
-  -e "s|\${DOWNLOAD_DIR}|$DOWNLOAD_DIR|g" \
-  -e "s|\${SCRIPT_PATH}|$SCRIPT_FILE|g" \
-  "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
-
-# 创建必需的空文件
-for file in aria2.session dht.dat dht6.dat; do
-  FILE_PATH="$TARGET_DIR/$file"
-  [ ! -f "$FILE_PATH" ] && touch "$FILE_PATH"
-done
-
-exit 0
+echo "错误：未找到 config_callback，配置未生成" >&2
+exit 1
