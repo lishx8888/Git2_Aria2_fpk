@@ -14,11 +14,25 @@ start_process() {
         return 0
     fi
 
-    # 软链接自愈：缺失时自动重建
+    # 软链接自愈：缺失时自动重建（优先 PATH，再兜底常见路径）
     local aria2c_bin="${TRIM_APPDEST}/server/aria2c"
     if [ ! -x "$aria2c_bin" ]; then
         mkdir -p "${TRIM_APPDEST}/server"
-        ln -sfT /usr/bin/aria2c "$aria2c_bin"
+        local aria2c_src=""
+        if command -v aria2c >/dev/null 2>&1; then
+            aria2c_src="$(command -v aria2c)"
+        elif [ -x /usr/bin/aria2c ]; then
+            aria2c_src="/usr/bin/aria2c"
+        elif [ -x /usr/local/bin/aria2c ]; then
+            aria2c_src="/usr/local/bin/aria2c"
+        elif [ -x /opt/bin/aria2c ]; then
+            aria2c_src="/opt/bin/aria2c"
+        fi
+        if [ -n "$aria2c_src" ]; then
+            ln -sfT "$aria2c_src" "$aria2c_bin"
+        else
+            log_msg "错误：系统中未找到 aria2c（已尝试 PATH、/usr/bin、/usr/local/bin、/opt/bin）"
+        fi
     fi
 
     log_msg "Starting process ..."

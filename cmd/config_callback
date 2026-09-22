@@ -7,12 +7,26 @@ SERVER_DIR="${TRIM_APPDEST}/server"
 ARIA2C_BIN="${SERVER_DIR}/aria2c"
 SCRIPT_FILE="${TARGET_DIR}/on-download-complete"
 
-# 重建软链接（升级/重装时可能失效）
+# 重建软链接（升级/重装时可能失效）：优先从 PATH 查找，再兜底常见路径
 mkdir -p "$SERVER_DIR"
 rm -f "$SERVER_DIR/README.txt" 2>/dev/null
 if [ ! -L "$ARIA2C_BIN" ]; then
     rm -f "$ARIA2C_BIN"
-    ln -sfT /usr/bin/aria2c "$ARIA2C_BIN"
+    ARIA2C_SRC=""
+    if command -v aria2c >/dev/null 2>&1; then
+        ARIA2C_SRC="$(command -v aria2c)"
+    elif [ -x /usr/bin/aria2c ]; then
+        ARIA2C_SRC="/usr/bin/aria2c"
+    elif [ -x /usr/local/bin/aria2c ]; then
+        ARIA2C_SRC="/usr/local/bin/aria2c"
+    elif [ -x /opt/bin/aria2c ]; then
+        ARIA2C_SRC="/opt/bin/aria2c"
+    fi
+    if [ -n "$ARIA2C_SRC" ]; then
+        ln -sfT "$ARIA2C_SRC" "$ARIA2C_BIN"
+    else
+        echo "错误：系统中未找到 aria2c（已尝试 PATH、/usr/bin、/usr/local/bin、/opt/bin）" >&2
+    fi
 fi
 
 # 始终重建 on-download-complete 钩子脚本（确保升级后旧版本被替换）
@@ -29,6 +43,8 @@ OWNER_UID=${OWNER%%:*}
 if [ -n "$OWNER_UID" ] && [ "$OWNER_UID" != "0" ]; then
   chown -R "$OWNER" "$FILEPATH" 2>/dev/null
 fi
+# 下载完成后删除 .aria2 控制文件（force-save=true 时会保留，已无实际用途）
+rm -f "${FILEPATH%/}.aria2" 2>/dev/null
 exit 0
 HOOK
 chmod +x "$SCRIPT_FILE"
