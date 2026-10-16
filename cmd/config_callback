@@ -51,37 +51,55 @@ fi
 # 下载完成后删除 .aria2 控制文件（清理旧版本残留；force-save=false 时 aria2 也会自行删除）
 rm -f "${FILEPATH%/}.aria2" 2>/dev/null
 
-# 记录已完成任务，供面板重启后恢复列表（会话文件已不再保留已完成任务）
+# 记录已完成任务到本地精简日志，供面板重启后恢复已完成列表
+# 仅提取前端渲染必需字段：gid / size / 文件名 / URL，不存 aria2 内部冗余
 # 放后台执行，避免钩子阻塞 aria2 的事件循环
 record_completed() {
   RPC_PORT=$(conf_get aria2.conf rpc-listen-port)
   RPC_PORT=${RPC_PORT:-6800}
   RPC_SECRET=$(conf_get aria2.conf rpc-secret)
-  REC=""
+  json_escape() { printf '%s' "${1//\\/\\\\}" | sed 's/"/\\"/g'; }
+
+  SIZE="" COMPLETED="" DIR="" NAME="" URI=""
   if [ -n "$GID" ] && command -v curl >/dev/null 2>&1; then
     RESP=$(curl -s --max-time 5 -H "Content-Type: application/json" \
       --data-binary "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"aria2.tellStatus\",\"params\":[\"token:${RPC_SECRET}\",\"${GID}\"]}" \
       "http://127.0.0.1:${RPC_PORT}/jsonrpc" 2>/dev/null)
-    MARK='"result":'
-    REC="${RESP#*$MARK}"
-    REC="${REC%?}"
-    case "$REC" in
-      '{'*'}') ;;
-      *) REC="" ;;
-    esac
+    SIZE=$(printf '%s' "$RESP" | sed -n 's/.*"totalLength":"\([0-9]*\)".*/\1/p' | head -n 1)
+    COMPLETED=$(printf '%s' "$RESP" | sed -n 's/.*"completedLength":"\([0-9]*\)".*/\1/p' | head -n 1)
+    DIR=$(printf '%s' "$RESP" | sed -n 's/.*"dir":"\([^"]*\)".*/\1/p' | head -n 1)
+    NAME=$(printf '%s' "$RESP" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p' | head -n 1)
+    URI=$(printf '%s' "$RESP" | sed -n 's/.*"uri":"\([^"]*\)".*/\1/p' | head -n 1)
   fi
-  if [ -z "$REC" ]; then
-    # RPC 不可用时的兜底记录（仅文件名与大小）
-    SIZE=0
-    [ -f "$FILEPATH" ] && SIZE=$(stat -c %s "$FILEPATH" 2>/dev/null)
-    SIZE=${SIZE:-0}
-    NAME=$(basename "$FILEPATH")
-    NAME=${NAME//\\/\\\\}
-    NAME=${NAME//\"/\\\"}
-    REC="{\"gid\":\"${GID}\",\"status\":\"complete\",\"totalLength\":\"${SIZE}\",\"completedLength\":\"${SIZE}\",\"downloadSpeed\":\"0\",\"uploadSpeed\":\"0\",\"dir\":\"\",\"files\":[{\"path\":\"${NAME}\",\"uris\":[]}]}"
+  # 兜底：RPC 拿不到的字段用本地信息补
+  [ -z "$SIZE" ] && SIZE=$(stat -c %s "$FILEPATH" 2>/dev/null)
+  SIZE=${SIZE:-0}
+  COMPLETED=${COMPLETED:-$SIZE}
+  [ -z "$DIR" ] && DIR="$DOWNLOAD_DIR"
+  [ -z "$NAME" ] && NAME=$(basename "$FILEPATH")
+  NAME_E=$(json_escape "$NAME")
+  DIR_E=$(json_escape "$DIR")
+  URI_E=$(json_escape "$URI")
+
+  # 去重：用同一下载地址或同一文件名作为 key，删掉旧记录后再追加新的
+  # 注意：dedup_key 必须用 json_escape 之后的值（URI_E/NAME_E），和文件里实际存的格式一致
+  # grep -F 固定字符串模式下不需要正则转义
+  dedup_key=""
+  if [ -n "$URI" ]; then
+    dedup_key="$URI_E"
+  elif [ -n "$NAME" ]; then
+    dedup_key="$NAME_E"
   fi
-  printf '{"ts":%s,%s\n' "$(date +%s)" "${REC#?}" >> "$HIST_FILE" 2>/dev/null
-  # 仅保留最近 500 条记录
+  if [ -n "$dedup_key" ] && [ -f "$HIST_FILE" ]; then
+    grep -vF "$dedup_key" "$HIST_FILE" > "${HIST_FILE}.tmp" 2>/dev/null
+    mv "${HIST_FILE}.tmp" "$HIST_FILE" 2>/dev/null
+  fi
+
+  printf '{"ts":%s,"gid":"%s","status":"complete","totalLength":"%s","completedLength":"%s","dir":"%s","files":[{"path":"%s","uris":[{"uri":"%s"}]}]}
+' \
+    "$(date +%s)" "$GID" "$SIZE" "$COMPLETED" "$DIR_E" "$NAME_E" "$URI_E" >> "$HIST_FILE" 2>/dev/null
+
+  # 仅保留最近 500 条
   LINES=$(wc -l < "$HIST_FILE" 2>/dev/null)
   if [ "${LINES:-0}" -gt 500 ]; then
     tail -n 500 "$HIST_FILE" > "${HIST_FILE}.tmp" 2>/dev/null && mv "${HIST_FILE}.tmp" "$HIST_FILE" 2>/dev/null
