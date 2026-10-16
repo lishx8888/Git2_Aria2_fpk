@@ -133,6 +133,7 @@ aria2c 以 root 身份运行（`config/privilege` 中 `run-as: root`），下载
 | `/api/active` | 下载中任务 | `aria2.tellActive` |
 | `/api/waiting` | 等待中任务 | `aria2.tellWaiting` |
 | `/api/stopped` | 已停止任务 | `aria2.tellStopped` |
+| `/api/history` | 本地已完成记录（重启后恢复列表用） | — |
 | `/api/add?url=&dir=` | 新建下载（dir 可选） | `aria2.addUri` |
 | `/api/pause?gid=` | 暂停任务 | `aria2.pause` |
 | `/api/unpause?gid=` | 继续任务 | `aria2.unpause` |
@@ -163,6 +164,9 @@ aria2c 以 root 身份运行（`config/privilege` 中 `run-as: root`），下载
 
 **Q：面板打不开 / 任务列表加载失败？**
 查看 `shares/info.log` 与 `shares/data/aria2.log`。先确认软链接是否存在且可执行：`ls -l /var/apps/Aria2/target/server/aria2c`，应为指向 `/usr/bin/aria2c` 的软链接；缺失时重启应用会自动重建。
+
+**Q：下载完成后删除了文件，重启后面板还显示"完成"，是残留吗？**
+不是。已完成列表由 `shares/data/completed.jsonl` 记录，与下载文件是否还存在无关；aria2 本身已不再持有这些任务（`force-save=false`），所以**不会重新下载**。想清掉这几行记录，点面板上的「清空已完成任务」即可。
 
 **Q：aria2c 启动失败，提示端口占用？**
 RPC 默认端口 6800、BT/DHT 端口 6881-6999 可能被其他实例（如 Docker 中的 aria2 容器）占用。停止冲突服务，或在应用配置页修改 RPC 端口后重新生成配置。

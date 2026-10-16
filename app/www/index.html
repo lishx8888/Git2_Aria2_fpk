@@ -288,11 +288,12 @@ async function refresh() {
   const sel = window.getSelection && window.getSelection();
   if (sel && !sel.isCollapsed) return;
   try {
-    const [active, waiting, stopped, stat] = await Promise.all([
-      apiGet('active'), apiGet('waiting'), apiGet('stopped'), apiGet('stat')
+    const [active, waiting, stopped, stat, hist] = await Promise.all([
+      apiGet('active'), apiGet('waiting'), apiGet('stopped'), apiGet('stat'),
+      apiGet('history').catch(() => ({ result: [] }))
     ]);
     setConn(true, '已连接');
-    renderTasks(active.result || [], waiting.result || [], stopped.result || []);
+    renderTasks(active.result || [], waiting.result || [], stopped.result || [], hist.result || []);
     renderStat(stat.result || {});
     const hasActive = (active.result || []).length > 0;
     if (hasActive && !pollTimer && !document.hidden) {
@@ -311,11 +312,16 @@ function renderStat(stat) {
   $('ulSpeed').textContent = formatSpeed(stat.uploadSpeed);
 }
 
-function renderTasks(active, waiting, stopped) {
+function renderTasks(active, waiting, stopped, history) {
   const body = $('taskBody');
   // stopped（含完成/错误）反序，让最新完成的排在最上面
   const stoppedSorted = (stopped || []).slice().reverse();
-  const all = (active || []).concat(waiting || [], stoppedSorted).filter(t => t && t.status !== 'removed');
+  // 本地已完成记录：剔除 aria2 当前仍在列表中的（同一 gid），按完成时间倒序补充在末尾
+  const liveGids = new Set((stopped || []).map(t => t && t.gid).filter(Boolean));
+  const hist = (history || []).slice().reverse()
+    .filter(h => h && h.gid && !liveGids.has(h.gid))
+    .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
+  const all = (active || []).concat(waiting || [], stoppedSorted, hist).filter(t => t && t.status !== 'removed');
 
   if (!all.length) {
     body.innerHTML = '';
@@ -455,12 +461,14 @@ function showTaskMsg(text, type) {
 
 async function clearCompletedTasks() {
   try {
-    const stopped = await apiGet('stopped');
+    const [stopped, hist] = await Promise.all([
+      apiGet('stopped'), apiGet('history').catch(() => ({ result: [] }))
+    ]);
     const hasStopped = (stopped.result || []).some(t =>
       t.status === 'complete' || t.status === 'error' || t.status === 'removed'
     );
-    if (!hasStopped) return;
-    // 一次性清除全部已停止任务，服务端会同步持久化会话文件
+    if (!hasStopped && !(hist.result || []).length) return;
+    // 一次性清除全部已停止任务，服务端会同步清空本地已完成记录
     await apiGet('purge');
   } catch (e) {
     // 清空失败静默

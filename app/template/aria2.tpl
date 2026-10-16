@@ -43,9 +43,10 @@ save-session-interval=30
 auto-save-interval=20
 
 # 强制保存，即使任务已完成也保存信息到会话文件, 默认:false
-# 开启后会在任务完成后保留 .aria2 文件，文件被移除且任务存在的情况下重启后会重新下载。
-# 关闭后已完成的任务列表会在重启后清空。
-force-save=true
+# 必须保持 false：一旦为 true，已完成任务会连同 .aria2 控制文件写入会话文件，
+# 重启时 input-file 会重新装载这些记录；若此时文件已被删除或移动，aria2 会重新下载一遍。
+# 已完成任务列表改由 on-download-complete 钩子记录到 data/completed.jsonl，重启后由面板恢复显示。
+force-save=false
 
 ## ==================
 ## 下载速度/连接限制

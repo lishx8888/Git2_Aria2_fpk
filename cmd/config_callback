@@ -32,19 +32,62 @@ fi
 # 始终重建 on-download-complete 钩子脚本（确保升级后旧版本被替换）
 cat > "$SCRIPT_FILE" << 'HOOK'
 #!/bin/bash
+GID="$1"
 FILEPATH="$3"
 [ -z "$FILEPATH" ] && exit 0
 SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
+HIST_FILE="$SCRIPT_DIR/completed.jsonl"
 trim() { sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
-DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/ui.conf" 2>/dev/null | head -1 | trim)
-[ -z "$DOWNLOAD_DIR" ] && DOWNLOAD_DIR=$(sed -n 's/^[[:space:]]*dir[[:space:]]*=[[:space:]]*//p' "$SCRIPT_DIR/aria2.conf" 2>/dev/null | head -1 | trim)
+conf_get() {
+  sed -n "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*//p" "$SCRIPT_DIR/$1" 2>/dev/null | head -n 1 | trim
+}
+DOWNLOAD_DIR=$(conf_get ui.conf dir)
+[ -z "$DOWNLOAD_DIR" ] && DOWNLOAD_DIR=$(conf_get aria2.conf dir)
 OWNER=$(stat -c %u:%g "$DOWNLOAD_DIR" 2>/dev/null)
 OWNER_UID=${OWNER%%:*}
 if [ -n "$OWNER_UID" ] && [ "$OWNER_UID" != "0" ]; then
   chown -R "$OWNER" "$FILEPATH" 2>/dev/null
 fi
-# 下载完成后删除 .aria2 控制文件（force-save=true 时会保留，已无实际用途）
+# 下载完成后删除 .aria2 控制文件（清理旧版本残留；force-save=false 时 aria2 也会自行删除）
 rm -f "${FILEPATH%/}.aria2" 2>/dev/null
+
+# 记录已完成任务，供面板重启后恢复列表（会话文件已不再保留已完成任务）
+# 放后台执行，避免钩子阻塞 aria2 的事件循环
+record_completed() {
+  RPC_PORT=$(conf_get aria2.conf rpc-listen-port)
+  RPC_PORT=${RPC_PORT:-6800}
+  RPC_SECRET=$(conf_get aria2.conf rpc-secret)
+  REC=""
+  if [ -n "$GID" ] && command -v curl >/dev/null 2>&1; then
+    RESP=$(curl -s --max-time 5 -H "Content-Type: application/json" \
+      --data-binary "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"aria2.tellStatus\",\"params\":[\"token:${RPC_SECRET}\",\"${GID}\"]}" \
+      "http://127.0.0.1:${RPC_PORT}/jsonrpc" 2>/dev/null)
+    MARK='"result":'
+    REC="${RESP#*$MARK}"
+    REC="${REC%?}"
+    case "$REC" in
+      '{'*'}') ;;
+      *) REC="" ;;
+    esac
+  fi
+  if [ -z "$REC" ]; then
+    # RPC 不可用时的兜底记录（仅文件名与大小）
+    SIZE=0
+    [ -f "$FILEPATH" ] && SIZE=$(stat -c %s "$FILEPATH" 2>/dev/null)
+    SIZE=${SIZE:-0}
+    NAME=$(basename "$FILEPATH")
+    NAME=${NAME//\\/\\\\}
+    NAME=${NAME//\"/\\\"}
+    REC="{\"gid\":\"${GID}\",\"status\":\"complete\",\"totalLength\":\"${SIZE}\",\"completedLength\":\"${SIZE}\",\"downloadSpeed\":\"0\",\"uploadSpeed\":\"0\",\"dir\":\"\",\"files\":[{\"path\":\"${NAME}\",\"uris\":[]}]}"
+  fi
+  printf '{"ts":%s,%s\n' "$(date +%s)" "${REC#?}" >> "$HIST_FILE" 2>/dev/null
+  # 仅保留最近 500 条记录
+  LINES=$(wc -l < "$HIST_FILE" 2>/dev/null)
+  if [ "${LINES:-0}" -gt 500 ]; then
+    tail -n 500 "$HIST_FILE" > "${HIST_FILE}.tmp" 2>/dev/null && mv "${HIST_FILE}.tmp" "$HIST_FILE" 2>/dev/null
+  fi
+}
+record_completed &
 exit 0
 HOOK
 chmod +x "$SCRIPT_FILE"
