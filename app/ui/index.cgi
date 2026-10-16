@@ -9,6 +9,9 @@ CONF_FILE="/var/apps/Aria2/shares/data/aria2.conf"
 # 面板自定义配置（GitHub 加速前缀 / 默认下载目录）
 UI_CONF_FILE="/var/apps/Aria2/shares/data/ui.conf"
 
+# 已完成任务记录（由 on-download-complete 钩子写入，用于重启后恢复已完成列表）
+HIST_FILE="/var/apps/Aria2/shares/data/completed.jsonl"
+
 # aria2 RPC 查询用到的字段
 KEYS_JSON='"gid","totalLength","completedLength","downloadSpeed","uploadSpeed","status","files","bittorrent","dir","connections","errorCode","errorMessage"'
 
@@ -67,6 +70,16 @@ write_ui_conf() {
     if [ -n "$dir" ]; then printf 'dir=%s\n' "$dir" >> "$UI_CONF_FILE"; fi
 }
 
+# 从已完成记录中删除指定 gid 的记录（删除任务时同步清理，避免重启后"复活"）
+purge_history_gid() {
+    local gid="$1"
+    [ -f "$HIST_FILE" ] || return 0
+    local tmp="${HIST_FILE}.tmp"
+    grep -v "\"gid\":\"${gid}\"" "$HIST_FILE" > "$tmp" 2>/dev/null
+    mv "$tmp" "$HIST_FILE" 2>/dev/null
+    return 0
+}
+
 # 从 QUERY_STRING 中取指定 key 并解码
 get_param() {
     local key="$1"
@@ -112,11 +125,11 @@ emit_error() {
     exit 0
 }
 
-# 统一的 RPC 输出：$1=method，$2=token 之后的 params 片段（可为空）
-rpc_emit() {
+# 构造 JSON-RPC 请求体：$1=method，$2=token 之后的 params 片段（可为空）
+# 调用前需先执行 read_conf 以取得 RPC_SECRET
+rpc_payload() {
     local method="$1"
     local rest="$2"
-    read_conf
     local token
     if [ -n "$RPC_SECRET" ]; then
         token="\"token:$(json_escape "$RPC_SECRET")\""
@@ -124,15 +137,20 @@ rpc_emit() {
         token="\"\""
     fi
 
-    local payload
     if [ -n "$rest" ]; then
-        payload="{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"$method\",\"params\":[$token,$rest]}"
+        printf '{"jsonrpc":"2.0","id":"1","method":"%s","params":[%s,%s]}' "$method" "$token" "$rest"
     else
-        payload="{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"$method\",\"params\":[$token]}"
+        printf '{"jsonrpc":"2.0","id":"1","method":"%s","params":[%s]}' "$method" "$token"
     fi
+}
 
+# 统一的 RPC 输出：$1=method，$2=token 之后的 params 片段（可为空）
+rpc_emit() {
+    local method="$1"
+    local rest="$2"
+    read_conf
     emit_json_header
-    rpc_call "$payload"
+    rpc_call "$(rpc_payload "$method" "$rest")"
     exit 0
 }
 
@@ -209,7 +227,22 @@ case "$REL_PATH" in
     /api/active)       rpc_emit aria2.tellActive "[$KEYS_JSON]" ;;
     /api/waiting)      rpc_emit aria2.tellWaiting "0,1000,[$KEYS_JSON]" ;;
     /api/stopped)      rpc_emit aria2.tellStopped "0,1000,[$KEYS_JSON]" ;;
-    /api/purge)        rpc_emit aria2.purgeDownloadResult "" ;;
+    /api/history)
+        # 本地已完成任务记录：重启后 aria2 已不再保留（force-save=false），由面板合并显示
+        emit_json_header
+        printf '{"jsonrpc":"2.0","id":"1","result":['
+        if [ -f "$HIST_FILE" ]; then
+            tail -n 1000 "$HIST_FILE" 2>/dev/null | grep -E '^\{.*\}$' | paste -sd, -
+        fi
+        printf ']}\n'
+        exit 0 ;;
+    /api/purge)
+        # 一次性清除全部已停止（完成/错误/已移除）的任务结果，并清空本地已完成记录
+        read_conf
+        emit_json_header
+        rpc_call "$(rpc_payload aria2.purgeDownloadResult "")"
+        rm -f "$HIST_FILE" 2>/dev/null
+        exit 0 ;;
     /api/add)
         URL="$(get_param url)"
         if [ -z "$URL" ]; then emit_error "缺少 url 参数"; fi
@@ -230,11 +263,20 @@ case "$REL_PATH" in
     /api/remove)
         GID="$(get_param gid)"
         if [ -z "$GID" ]; then emit_error "缺少 gid 参数"; fi
-        rpc_emit aria2.removeDownloadResult "\"$(json_escape "$GID")\"" ;;
+        read_conf
+        emit_json_header
+        purge_history_gid "$GID"
+        rpc_call "$(rpc_payload aria2.removeDownloadResult "\"$(json_escape "$GID")\"")"
+        exit 0 ;;
     /api/forceRemove)
         GID="$(get_param gid)"
         if [ -z "$GID" ]; then emit_error "缺少 gid 参数"; fi
-        rpc_emit aria2.forceRemove "\"$(json_escape "$GID")\"" ;;
+        read_conf
+        emit_json_header
+        purge_history_gid "$GID"
+        rpc_call "$(rpc_payload aria2.forceRemove "\"$(json_escape "$GID")\"")"
+        rpc_call "$(rpc_payload aria2.removeDownloadResult "\"$(json_escape "$GID")\"")" >/dev/null 2>&1
+        exit 0 ;;
     *)
         serve_static "$REL_PATH" ;;
 esac

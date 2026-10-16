@@ -1,6 +1,6 @@
 #!/bin/bash
 ### 安装时复用 config_callback 生成配置与 hook 脚本，避免双份维护
-### config_callback 已含模板存在性检查、端口/密钥继承、.aria2 清理
+### config_callback 已含模板存在性检查、端口/密钥继承、.aria2 清理、已完成记录写入
 
 CMD_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 
