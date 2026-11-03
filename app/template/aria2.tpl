@@ -76,8 +76,9 @@ reuse-uri=false
 # 禁用 netrc 支持，默认:false
 no-netrc=true
 
-# 允许覆盖，当相关控制文件(.aria2)不存在时从头开始重新下载。默认:false
-allow-overwrite=false
+# 允许覆盖：当目标文件已存在时允许覆盖下载，而非跳过。默认:false
+# 设为 true 后，即使文件没被删除（比如想重新下载覆盖旧版本），aria2 也会正常下载。
+allow-overwrite=true
 
 # 文件自动重命名，此选项仅在 HTTP(S)/FTP 下载中有效。新文件名在名称之后扩展名之前加上一个点和一个数字（1..9999）。默认:true
 auto-file-renaming=true

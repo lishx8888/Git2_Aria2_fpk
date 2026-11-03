@@ -104,6 +104,15 @@ record_completed() {
   if [ "${LINES:-0}" -gt 500 ]; then
     tail -n 500 "$HIST_FILE" > "${HIST_FILE}.tmp" 2>/dev/null && mv "${HIST_FILE}.tmp" "$HIST_FILE" 2>/dev/null
   fi
+
+  # 关键：清理 aria2 stopped 列表中的已完成记录
+  # 不清理的话，BT/磁力链 任务会因 info hash 去重阻止重新下载（同一 info hash 不能在同一 aria2 实例里存在两个任务）
+  # removeDownloadResult 只移除 stopped 列表条目，不删除实际下载文件
+  if [ -n "$GID" ] && command -v curl >/dev/null 2>&1; then
+    curl -s --max-time 3 -H "Content-Type: application/json" \
+      --data-binary "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"aria2.removeDownloadResult\",\"params\":[\"token:${RPC_SECRET}\",\"${GID}\"]}" \
+      "http://127.0.0.1:${RPC_PORT}/jsonrpc" >/dev/null 2>&1
+  fi
 }
 record_completed &
 exit 0
