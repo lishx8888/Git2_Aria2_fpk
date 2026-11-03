@@ -58,6 +58,9 @@ record_completed() {
   RPC_PORT=$(conf_get aria2.conf rpc-listen-port)
   RPC_PORT=${RPC_PORT:-6800}
   RPC_SECRET=$(conf_get aria2.conf rpc-secret)
+  # 反转义从 JSON 字符串中提取的转义序列（aria2 RPC 会把 / 转义为 \/）
+  json_unescape() { printf '%s' "$1" | sed 's#\\/#/#g; s#\\\\#\\#g; s#\\"#"#g'; }
+  # 转义 shell 变量为 JSON 安全字符串
   json_escape() { printf '%s' "${1//\\/\\\\}" | sed 's/"/\\"/g'; }
 
   SIZE="" COMPLETED="" DIR="" NAME="" URI=""
@@ -70,6 +73,10 @@ record_completed() {
     DIR=$(printf '%s' "$RESP" | sed -n 's/.*"dir":"\([^"]*\)".*/\1/p' | head -n 1)
     NAME=$(printf '%s' "$RESP" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p' | head -n 1)
     URI=$(printf '%s' "$RESP" | sed -n 's/.*"uri":"\([^"]*\)".*/\1/p' | head -n 1)
+    # sed 从 JSON 里抓的引号间内容可能含 JSON 转义（aria2 把 / 转义为 \/），先反转义
+    DIR=$(json_unescape "$DIR")
+    NAME=$(json_unescape "$NAME")
+    URI=$(json_unescape "$URI")
   fi
   # 兜底：RPC 拿不到的字段用本地信息补
   [ -z "$SIZE" ] && SIZE=$(stat -c %s "$FILEPATH" 2>/dev/null)
