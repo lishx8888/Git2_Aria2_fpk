@@ -14,7 +14,23 @@ start_process() {
         return 0
     fi
 
+    # 系统重启时共享数据目录可能尚未挂载完成，此时 aria2.conf 不存在，
+    # aria2c 会忽略 --conf-path 用默认配置启动（默认 dir 不可写，任务全部立即失败）。
+    # 此处等待配置就绪，最多 30 秒。
+    local conf="${TRIM_DATA_SHARE_PATHS%%:*}/data/aria2.conf"
+    local waited=0
+    while [ ! -f "$conf" ] && [ $waited -lt 30 ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    if [ ! -f "$conf" ]; then
+        log_msg "错误：配置文件未就绪（已等待 ${waited}s），放弃启动: $conf"
+        return 1
+    fi
+    [ "$waited" -gt 0 ] && log_msg "等待配置文件就绪 ${waited}s: $conf"
+
     log_msg "Starting process ..."
+    log_msg "conf: $conf"
     bash -c "${CMD}" >> ${LOG_FILE} 2>&1 &
     printf "%s" "$!" > ${PID_FILE}
     return 0

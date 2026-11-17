@@ -346,12 +346,14 @@ function renderTasks(active, waiting, stopped, history) {
     }
     const circ = 2 * Math.PI * 16; // r=16
     const dash = circ * (1 - pct / 100);
+    // 错误任务悬停显示 aria2 返回的具体原因，便于排查（如目录不可写）
+    const errTip = t.errorMessage ? ' title="' + esc(t.errorMessage) + '"' : '';
     return '<tr>' +
       '<td class="name" title="' + esc(taskName(t)) + '">' + esc(taskName(t)) + '</td>' +
       '<td>' + formatBytes(t.totalLength) + '</td>' +
       '<td><div class="ring"><svg viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="16"/><circle class="ring-fg" cx="18" cy="18" r="16" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + dash.toFixed(2) + '"/></svg><span class="ring-pct">' + pct.toFixed(0) + '%</span></div></td>' +
       '<td>' + formatSpeed(t.downloadSpeed) + '</td>' +
-      '<td class="col-status"><span class="tag ' + st.cls + '">' + st.text + '</span></td>' +
+      '<td class="col-status"><span class="tag ' + st.cls + '"' + errTip + '>' + st.text + '</span></td>' +
       '<td><div class="actions">' + ops + '</div></td>' +
       '</tr>';
   }).join('');
@@ -390,15 +392,18 @@ async function addUrls(lines) {
   }
   if (!urls.length) { return; }
 
+  let failed = '';
   for (const u of urls) {
     const params = { url: u };
     if (config.dir) params.dir = config.dir;
     try {
       await apiGet('add', params);
     } catch (e) {
-      // 添加失败静默
+      // 记录具体失败原因，避免只显示笼统的"错误"而无法排查
+      failed = (e && e.message) ? e.message : '添加任务失败';
     }
   }
+  if (failed) showResult(failed, 'error');
   setTimeout(refresh, 500);
 }
 
