@@ -34,6 +34,17 @@ max-resume-failure-tries=0
 # 获取服务器文件时间，默认:false
 remote-time=true
 
+## ==================
+## 重试与超时
+## ==================
+# 最大重试次数，0 表示无限重试，默认:5
+max-tries=10
+
+# 重试等待时间（秒），默认:0（立即重试）
+# 加速代理偶尔返回 502/503 等瞬时错误，retry-wait=0 会让 5 次重试瞬间耗尽而失败；
+# 设为 10 秒可在约 100 秒窗口内持续重试，多数代理抖动可自动恢复。
+retry-wait=10
+
 # 断点续传文件保存位置（由 install_callback/config_callback 渲染为框架数据目录，随套件升级保留）
 input-file=${DATA_DIR}/aria2.session
 save-session=${DATA_DIR}/aria2.session
